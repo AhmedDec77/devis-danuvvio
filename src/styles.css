@@ -132,12 +132,15 @@ tr.doc-materiel td { background: #f7f7f7; color: #444; font-size: 10px; }
 @media print {
   body { background: #fff; }
   .no-print { display: none !important; }
-  .doc { width: auto; margin: 0; }
+  .doc { width: auto; margin: 0; min-height: calc(var(--pages, 1) * 297mm - 2mm); }
   table.doc-cadre > thead { display: table-header-group; }   /* en-tête répété chaque page */
   table.doc-cadre > tfoot { display: table-footer-group; }   /* espace réservé chaque page */
   .doc-footer { position: fixed; bottom: 5mm; left: 14mm; right: 14mm; background: #fff; }
   .doc-pages-nums { display: block; }                         /* numéros Seite X / Y */
-  tr { page-break-inside: avoid; }
+  /* le conteneur du document DOIT pouvoir se couper entre les pages */
+  table.doc-cadre, table.doc-cadre > tbody, table.doc-cadre > tbody > tr, table.doc-cadre > tbody > tr > td { break-inside: auto; page-break-inside: auto; }
+  /* seules les lignes du tableau de positions restent insécables */
+  table.doc-table tr, .doc-totaux, .doc-signatures { break-inside: avoid; page-break-inside: avoid; }
   /* margin 0 = supprime les notes du navigateur (URL, date, titre, "1 of 2") */
   @page { size: A4; margin: 0; }
 }

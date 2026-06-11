@@ -27,12 +27,27 @@ export default function DocumentAngebot({ numero, client, architecte, projet, li
   useEffect(() => {
     const mesurer = () => {
       if (!ref.current) return
-      const h = ref.current.scrollHeight / PX_PAR_MM // en mm
-      setPages(Math.max(1, Math.ceil(h / PAGE_MM)))
+      const doc = ref.current
+      const thead = doc.querySelector('table.doc-cadre > thead')
+      const tfootSp = doc.querySelector('.doc-tfoot-espace')
+      const hEcran = doc.scrollHeight / PX_PAR_MM            // hauteur du contenu (en-tête compté 1 fois)
+      const hTete = (thead?.offsetHeight || 0) / PX_PAR_MM   // en-tête répété
+      const hPied = (tfootSp?.offsetHeight || 0) / PX_PAR_MM // espace pied répété
+      // À l'impression, l'en-tête + l'espace pied se répètent sur chaque page :
+      // on itère jusqu'à ce que le nombre de pages soit stable.
+      let p = Math.max(1, Math.ceil(hEcran / PAGE_MM))
+      for (let k = 0; k < 5; k++) {
+        const hImpression = hEcran + (p - 1) * (hTete + hPied)
+        const np = Math.max(1, Math.ceil(hImpression / PAGE_MM))
+        if (np === p) break
+        p = np
+      }
+      setPages(p)
     }
     mesurer()
-    const t = setTimeout(mesurer, 250)
-    return () => clearTimeout(t)
+    const t = setTimeout(mesurer, 300)
+    window.addEventListener('beforeprint', mesurer)
+    return () => { clearTimeout(t); window.removeEventListener('beforeprint', mesurer) }
   }, [lignes, modeDin, architecte, projet])
 
   const today = new Date()
@@ -57,7 +72,7 @@ export default function DocumentAngebot({ numero, client, architecte, projet, li
 
   let pos = 0
   return (
-    <div className="doc" ref={ref}>
+    <div className="doc" ref={ref} style={{ '--pages': pages }}>
       <table className="doc-cadre">
         {/* En-tête répété sur chaque page imprimée */}
         <thead>

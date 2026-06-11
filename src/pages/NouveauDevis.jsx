@@ -129,7 +129,7 @@ export default function NouveauDevis({ devisExistant }) {
       client_civilite: client.civilite, client_prenom: client.prenom, client_nom: client.nom,
       client_adresse: client.adresse, client_ville: client.ville,
       titre: projet, architecte, mode_din: modeDin, niveau_prix: niveau,
-      total_ht: totalHT, tva, total_ttc: ttc, lignes, statut: 'brouillon',
+      total_ht: totalHT, tva, total_ttc: ttc, lignes, statut: 'borrador',
     }
     if (devisExistant?.id) await supabase.from('devis').update(payload).eq('id', devisExistant.id)
     else {

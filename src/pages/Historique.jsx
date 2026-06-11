@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, fmt } from '../lib/supabase'
 
-const STATUTS = ['brouillon', 'envoyé', 'accepté', 'refusé']
+const STATUTS = ['borrador', 'enviado', 'aceptado', 'rechazado']
 
 export default function Historique({ onOuvrir }) {
   const [devis, setDevis] = useState([])
@@ -27,7 +27,7 @@ export default function Historique({ onOuvrir }) {
     (d.client_nom + ' ' + d.numero + ' ' + (d.titre || '')).toLowerCase().includes(recherche.toLowerCase())
   )
 
-  const totalAccepte = devis.filter((d) => d.statut === 'accepté').reduce((s, d) => s + Number(d.total_ttc), 0)
+  const totalAccepte = devis.filter((d) => d.statut === 'aceptado').reduce((s, d) => s + Number(d.total_ttc), 0)
 
   return (
     <div className="page">

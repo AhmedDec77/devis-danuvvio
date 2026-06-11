@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { fmt } from '../lib/supabase'
 import Logo from './Logo.jsx'
 
@@ -15,12 +16,29 @@ const SOCIETE = {
   ustId: '144/184/50267',
 }
 
+const PAGE_MM = 297            // hauteur A4
+const PX_PAR_MM = 96 / 25.4    // conversion px ↔ mm à 96 dpi
+
 export default function DocumentAngebot({ numero, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, validiteMois = 2 }) {
+  const ref = useRef(null)
+  const [pages, setPages] = useState(1)
+
+  // Mesure la hauteur du contenu pour calculer le nombre de pages et placer les numéros
+  useEffect(() => {
+    const mesurer = () => {
+      if (!ref.current) return
+      const h = ref.current.scrollHeight / PX_PAR_MM // en mm
+      setPages(Math.max(1, Math.ceil(h / PAGE_MM)))
+    }
+    mesurer()
+    const t = setTimeout(mesurer, 250)
+    return () => clearTimeout(t)
+  }, [lignes, modeDin, architecte, projet])
+
   const today = new Date()
   const date = today.toLocaleDateString('de-DE')
   const validite = new Date(today.getFullYear(), today.getMonth() + validiteMois, today.getDate()).toLocaleDateString('de-DE')
 
-  // group lines by DIN group when modeDin
   const groupes = []
   if (modeDin) {
     const map = new Map()
@@ -39,124 +57,142 @@ export default function DocumentAngebot({ numero, client, architecte, projet, li
 
   let pos = 0
   return (
-    <div className="doc">
-      {/* En-tête */}
-      <div className="doc-entete">
-        <div className="doc-logo"><Logo /></div>
-        <div className="doc-entete-droite">
-          <div className="doc-grand-titre">KOSTENVORANSCHLAG</div>
-          <div className="doc-numero">Nr. {numero}</div>
-          {modeDin && <div className="doc-sous-titre">Strukturiert nach DIN 276 Kostengruppen</div>}
-          <div className="doc-coordonnees">
-            {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel}<br />
-            {SOCIETE.email}
-          </div>
-        </div>
-      </div>
-      <div className="doc-trait-rouge" />
-
-      {/* Bloc info 4 colonnes */}
-      <div className="doc-infos">
-        <div>
-          <div className="doc-info-titre">Auftraggeber / Bauherr:</div>
-          {client.civilite} {client.prenom} {client.nom}<br />
-          {client.adresse && <>{client.adresse}<br /></>}
-          {client.ville}
-        </div>
-        {architecte && (
-          <div>
-            <div className="doc-info-titre">Planung / Architekt:in:</div>
-            <span style={{ whiteSpace: 'pre-wrap' }}>{architecte}</span>
-          </div>
-        )}
-        <div>
-          <div className="doc-info-titre">Bauvorhaben:</div>
-          <b>{projet || '—'}</b>
-        </div>
-        <div>
-          <div className="doc-info-titre">Angebotsdaten:</div>
-          Datum: {date}<br />
-          Angebots-Nr.: {numero}<br />
-          Gültig bis: {validite}
-        </div>
-      </div>
-
-      <p className="doc-intro">
-        Sehr geehrte{client.civilite === 'Herr' ? 'r Herr' : client.civilite === 'Frau' ? ' Frau' : ''} {client.nom},<br />
-        vielen Dank für Ihr Vertrauen. Hiermit unterbreite ich Ihnen folgendes Angebot
-        {projet ? <> für das Bauvorhaben <b>{projet}</b></> : ''}. Alle Leistungen werden fachgerecht
-        nach den anerkannten Regeln der Technik ausgeführt.
-      </p>
-
-      {/* Tableau */}
-      <table className="doc-table">
+    <div className="doc" ref={ref}>
+      <table className="doc-cadre">
+        {/* En-tête répété sur chaque page imprimée */}
         <thead>
-          <tr>
-            <th className="pos">Pos</th>
-            <th>Bezeichnung</th>
-            <th style={{ width: 52 }}>Menge</th>
-            <th style={{ width: 58 }}>Einheit</th>
-            <th style={{ width: 68 }}>E-Preis</th>
-            <th style={{ width: 80 }}>Gesamt €</th>
-          </tr>
+          <tr><td>
+            <div className="doc-entete">
+              <div className="doc-logo"><Logo width={130} /></div>
+              <div className="doc-entete-droite">
+                <div className="doc-grand-titre">KOSTENVORANSCHLAG</div>
+                <div className="doc-numero">Nr. {numero}</div>
+                <div className="doc-coordonnees">
+                  {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel} · {SOCIETE.email}
+                </div>
+              </div>
+            </div>
+            <div className="doc-trait-rouge" />
+          </td></tr>
         </thead>
+        {/* Réserve l'espace du pied de page sur chaque page imprimée */}
+        <tfoot>
+          <tr><td><div className="doc-tfoot-espace" /></td></tr>
+        </tfoot>
         <tbody>
-          {groupes.map((g, gi) => (
-            <Groupe key={gi} g={g} startPos={() => ++pos} />
-          ))}
+          <tr><td>
+            {modeDin && <div className="doc-sous-titre">Strukturiert nach DIN 276 Kostengruppen</div>}
+
+            <div className="doc-infos">
+              <div>
+                <div className="doc-info-titre">Auftraggeber / Bauherr:</div>
+                {client.civilite} {client.prenom} {client.nom}<br />
+                {client.adresse && <>{client.adresse}<br /></>}
+                {client.ville}
+              </div>
+              {architecte && (
+                <div>
+                  <div className="doc-info-titre">Planung / Architekt:in:</div>
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{architecte}</span>
+                </div>
+              )}
+              <div>
+                <div className="doc-info-titre">Bauvorhaben:</div>
+                <b>{projet || '—'}</b>
+              </div>
+              <div>
+                <div className="doc-info-titre">Angebotsdaten:</div>
+                Datum: {date}<br />
+                Angebots-Nr.: {numero}<br />
+                Gültig bis: {validite}
+              </div>
+            </div>
+
+            <p className="doc-intro">
+              Sehr geehrte{client.civilite === 'Herr' ? 'r Herr' : client.civilite === 'Frau' ? ' Frau' : ''} {client.nom},<br />
+              vielen Dank für Ihr Vertrauen. Hiermit unterbreite ich Ihnen folgendes Angebot
+              {projet ? <> für das Bauvorhaben <b>{projet}</b></> : ''}. Alle Leistungen werden fachgerecht
+              nach den anerkannten Regeln der Technik ausgeführt.
+            </p>
+
+            <table className="doc-table">
+              <thead>
+                <tr>
+                  <th className="pos">Pos</th>
+                  <th>Bezeichnung</th>
+                  <th style={{ width: 52 }}>Menge</th>
+                  <th style={{ width: 58 }}>Einheit</th>
+                  <th style={{ width: 68 }}>E-Preis</th>
+                  <th style={{ width: 80 }}>Gesamt €</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupes.map((g, gi) => (
+                  <Groupe key={gi} g={g} startPos={() => ++pos} />
+                ))}
+              </tbody>
+            </table>
+
+            <div className="doc-totaux">
+              <table>
+                <tbody>
+                  <tr><td>Zwischensumme</td><td className="num">{fmt(totalHT)} €</td></tr>
+                  <tr><td>MwSt. 19 %</td><td className="num">{fmt(tva)} €</td></tr>
+                  <tr className="final"><td>Gesamt</td><td className="num">{fmt(ttc)} €</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="doc-section-titre">Zahlungsbedingungen</div>
+            <div className="doc-legal">
+              Die Zahlung erfolgt nach Baufortschritt in drei Raten:<br />
+              • Abschlagszahlung 1 (30 %) bei Auftragserteilung und Arbeitsbeginn<br />
+              • Abschlagszahlung 2 (40 %) nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten<br />
+              • Schlusszahlung (30 %) nach gemeinsamer Abnahme und Mängelbeseitigung<br /><br />
+              Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
+              Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
+            </div>
+
+            <div className="doc-section-titre">Hinweise</div>
+            <div className="doc-legal">
+              Dieses Angebot ist bis zum {validite} gültig. Zusätzliche Leistungen, die nicht in diesem Angebot
+              enthalten sind, werden nach vorheriger Abstimmung gesondert berechnet. Unvorhersehbare Mehrleistungen
+              (z. B. verdeckte Schäden am Untergrund) werden vor Ausführung angezeigt und freigegeben.
+              Es gelten die Bestimmungen der VOB/B bzw. des BGB-Werkvertragsrechts.
+            </div>
+
+            <div className="doc-section-titre">Annahme des Angebots</div>
+            <div className="doc-legal">
+              Mit Unterzeichnung und Rücksendung dieses Angebots gelten die vorstehenden Bedingungen als angenommen.
+            </div>
+            <div className="doc-signatures">
+              <div>
+                <div className="doc-ligne-signature" />
+                Ort, Datum, Unterschrift Auftraggeber
+              </div>
+              <div>
+                <div className="doc-ligne-signature" />
+                Ort, Datum, Unterschrift Auftragnehmer
+              </div>
+            </div>
+          </td></tr>
         </tbody>
       </table>
 
-      {/* Totaux */}
-      <div className="doc-totaux">
-        <table>
-          <tbody>
-            <tr><td>Zwischensumme</td><td className="num">{fmt(totalHT)} €</td></tr>
-            <tr><td>MwSt. 19 %</td><td className="num">{fmt(tva)} €</td></tr>
-            <tr className="final"><td>Gesamt</td><td className="num">{fmt(ttc)} €</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Zahlungsbedingungen */}
-      <div className="doc-section-titre">Zahlungsbedingungen</div>
-      <div className="doc-legal">
-        Die Zahlung erfolgt nach Baufortschritt in drei Raten:<br />
-        • Abschlagszahlung 1 (30 %) bei Auftragserteilung und Arbeitsbeginn<br />
-        • Abschlagszahlung 2 (40 %) nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten<br />
-        • Schlusszahlung (30 %) nach gemeinsamer Abnahme und Mängelbeseitigung<br /><br />
-        Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
-        Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
-      </div>
-
-      <div className="doc-section-titre">Hinweise</div>
-      <div className="doc-legal">
-        Dieses Angebot ist bis zum {validite} gültig. Zusätzliche Leistungen, die nicht in diesem Angebot
-        enthalten sind, werden nach vorheriger Abstimmung gesondert berechnet. Unvorhersehbare Mehrleistungen
-        (z. B. verdeckte Schäden am Untergrund) werden vor Ausführung angezeigt und freigegeben.
-        Es gelten die Bestimmungen der VOB/B bzw. des BGB-Werkvertragsrechts.
-      </div>
-
-      <div className="doc-section-titre">Annahme des Angebots</div>
-      <div className="doc-legal">
-        Mit Unterzeichnung und Rücksendung dieses Angebots gelten die vorstehenden Bedingungen als angenommen.
-      </div>
-      <div className="doc-signatures">
-        <div>
-          <div className="doc-ligne-signature" />
-          Ort, Datum, Unterschrift Auftraggeber
-        </div>
-        <div>
-          <div className="doc-ligne-signature" />
-          Ort, Datum, Unterschrift Auftragnehmer
-        </div>
-      </div>
-
-      {/* Pied de page imprimé sur chaque page */}
+      {/* Pied de page fixe — répété sur chaque page imprimée */}
       <div className="doc-footer">
         {SOCIETE.nom} · {SOCIETE.titulaire} · {SOCIETE.rue} · {SOCIETE.ville}<br />
-        Tel. {SOCIETE.tel} · {SOCIETE.banque} IBAN: {SOCIETE.iban} · BIC: {SOCIETE.bic}<br />
+        Tel. {SOCIETE.tel} · {SOCIETE.banque} IBAN: {SOCIETE.iban} · BIC: {SOCIETE.bic} ·
         Betriebs-Nr: {SOCIETE.betriebsNr} · USt-IdNr. {SOCIETE.ustId}
+      </div>
+
+      {/* Numéros de page — positionnés en bas à droite de chaque page A4 */}
+      <div className="doc-pages-nums">
+        {Array.from({ length: pages }, (_, i) => (
+          <div key={i} className="doc-num-page" style={{ top: `calc(${(i + 1) * PAGE_MM}mm - 7.5mm)` }}>
+            Seite {i + 1} / {pages}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -174,9 +210,7 @@ function Groupe({ g, startPos }) {
       {g.lignes.map((l, i) => {
         const n = startPos()
         const numPos = g.code && g.code !== '000' ? `${g.code}.${String(i + 1).padStart(2, '0')}` : n
-        return (
-          <Ligne key={i} l={l} numPos={numPos} />
-        )
+        return <Ligne key={i} l={l} numPos={numPos} />
       })}
     </>
   )

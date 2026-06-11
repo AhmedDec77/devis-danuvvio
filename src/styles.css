@@ -1,66 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
+
 :root {
   --rouge: #c00000;
+  --rouge-fonce: #9a0000;
+  --encre: #232323;
+  --acier: #6d6d6d;
+  --papier: #faf8f5;
+  --ligne: #e8e4de;
   --gris: #f3f3f3;
   --texte: #1a1a1a;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: var(--texte); background: #fafafa; }
+body { margin: 0; font-family: 'Archivo', Helvetica, Arial, sans-serif; color: var(--encre); background: var(--papier); font-variant-numeric: tabular-nums; }
 
-/* ---------- App chrome ---------- */
-.topbar { background: var(--rouge); color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.topbar h1 { font-size: 17px; margin: 0; }
-.topbar nav { display: flex; gap: 8px; }
-.topbar button { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 14px; }
-.topbar button.actif { background: #fff; color: var(--rouge); font-weight: bold; }
-.topbar .droite { margin-left: auto; font-size: 13px; opacity: .85; display: flex; gap: 10px; align-items: center; }
+/* ---------- Motif toit (signature) ---------- */
+.bande-toit { height: 6px; background: repeating-linear-gradient(-45deg, var(--rouge) 0 14px, #8a8a8a 14px 22px, transparent 22px 34px); }
 
-.page { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
-.carte { background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; padding: 20px; margin-bottom: 18px; }
-.carte h2 { margin: 0 0 14px; font-size: 16px; color: var(--rouge); }
+/* ---------- Barre de navigation ---------- */
+.topbar { background: #fff; border-bottom: 1px solid var(--ligne); padding: 0 22px; display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+.topbar .marque { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.topbar .marque .app-nom { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--acier); border-left: 2px solid var(--rouge); padding-left: 12px; }
+.topbar nav { display: flex; gap: 4px; align-self: stretch; }
+.topbar nav button { background: none; border: none; border-bottom: 3px solid transparent; color: var(--acier); padding: 0 16px; cursor: pointer; font-size: 14.5px; font-weight: 600; font-family: inherit; }
+.topbar nav button:hover { color: var(--encre); }
+.topbar nav button.actif { color: var(--rouge); border-bottom-color: var(--rouge); }
+.topbar .droite { margin-left: auto; font-size: 13px; color: var(--acier); display: flex; gap: 12px; align-items: center; }
+.topbar .droite button { background: none; border: 1px solid var(--ligne); border-radius: 6px; color: var(--acier); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; }
+.topbar .droite button:hover { border-color: var(--rouge); color: var(--rouge); }
+
+.page { max-width: 1000px; margin: 26px auto 60px; padding: 0 18px; }
+.carte { background: #fff; border: 1px solid var(--ligne); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(35,35,35,.04); }
+.carte h2 { margin: 0 0 16px; font-size: 13px; color: var(--rouge); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
 
 .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
-input, select, textarea { width: 100%; padding: 9px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; }
-input:focus, select:focus { outline: 2px solid var(--rouge); border-color: transparent; }
+label { display: block; font-size: 12px; color: var(--acier); margin-bottom: 4px; font-weight: 500; }
+input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid #d7d2ca; border-radius: 7px; font-size: 14px; font-family: inherit; background: #fff; color: var(--encre); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--rouge); outline-offset: -1px; border-color: transparent; }
 
-.btn { background: var(--rouge); color: #fff; border: none; border-radius: 7px; padding: 11px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn { background: var(--rouge); color: #fff; border: none; border-radius: 8px; padding: 11px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn:hover { background: var(--rouge-fonce); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.sec { background: #fff; color: var(--rouge); border: 1.5px solid var(--rouge); }
-.btn.petit { padding: 6px 10px; font-size: 13px; }
+.btn.sec:hover { background: #fdf2f2; }
+.btn.petit { padding: 6px 12px; font-size: 13px; }
 
 /* Niveau de prix */
-.niveaux { display: flex; gap: 8px; }
-.niveaux button { flex: 1; padding: 12px; border: 2px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; }
-.niveaux button.actif { border-color: var(--rouge); background: #fdf2f2; font-weight: bold; }
-.niveaux small { display: block; color: #888; margin-top: 3px; }
+.niveaux { display: flex; gap: 10px; }
+.niveaux button { flex: 1; padding: 14px; border: 2px solid var(--ligne); background: #fff; border-radius: 10px; cursor: pointer; font-size: 14.5px; font-weight: 700; font-family: inherit; color: var(--encre); }
+.niveaux button:hover { border-color: #c9c2b8; }
+.niveaux button.actif { border-color: var(--rouge); background: #fdf2f2; }
+.niveaux small { display: block; color: var(--acier); margin-top: 3px; font-weight: 400; }
 
-/* Catalogue picker */
+/* Catalogue */
 .cat-bloc { margin-bottom: 14px; }
-.cat-titre { font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: #555; margin: 14px 0 6px; }
-.prestation { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #eee; border-radius: 7px; margin-bottom: 6px; background: #fff; }
+.cat-titre { font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--acier); margin: 16px 0 7px; }
+.prestation { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--ligne); border-radius: 8px; margin-bottom: 6px; background: #fff; }
 .prestation:hover { border-color: var(--rouge); }
 .prestation .nom { flex: 1; font-size: 13.5px; }
-.prestation .prix { font-size: 13px; color: #666; white-space: nowrap; }
+.prestation .prix { font-size: 13px; color: var(--acier); white-space: nowrap; font-weight: 600; }
 
 /* Lignes du devis */
-.ligne { display: grid; grid-template-columns: 1fr 70px 110px 110px 34px; gap: 8px; align-items: start; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.ligne { display: grid; grid-template-columns: 1fr 70px 110px 110px 34px; gap: 8px; align-items: start; padding: 8px 0; border-bottom: 1px solid #f0ede8; }
 .ligne textarea { min-height: 54px; resize: vertical; font-size: 13px; }
-.ligne .total { padding-top: 10px; text-align: right; font-weight: 600; font-size: 14px; }
-.ligne .suppr { background: none; border: none; color: #c00000; font-size: 18px; cursor: pointer; padding-top: 8px; }
-.totaux { margin-top: 14px; text-align: right; font-size: 15px; line-height: 1.9; }
-.totaux .ttc { font-size: 18px; font-weight: bold; color: var(--rouge); }
+.ligne .total { padding-top: 10px; text-align: right; font-weight: 700; font-size: 14px; }
+.ligne .suppr, .suppr { background: none; border: none; color: var(--rouge); font-size: 18px; cursor: pointer; padding-top: 8px; }
+.totaux { margin-top: 16px; text-align: right; font-size: 15px; line-height: 2; }
+.totaux .ttc { font-size: 19px; font-weight: 800; color: var(--rouge); }
 
 /* Historique */
 table.histo { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.histo th { text-align: left; padding: 9px 8px; background: var(--gris); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
-table.histo td { padding: 9px 8px; border-bottom: 1px solid #eee; }
-table.histo tr:hover td { background: #fdf7f7; }
-.badge { padding: 3px 9px; border-radius: 12px; font-size: 12px; background: #eee; }
-.badge.accepte { background: #d8f3d8; color: #1a6b1a; }
-.badge.envoye { background: #ddeafd; color: #1d4f9c; }
+table.histo th { text-align: left; padding: 10px 8px; background: var(--papier); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--acier); border-bottom: 2px solid var(--ligne); }
+table.histo td { padding: 10px 8px; border-bottom: 1px solid #f0ede8; }
+table.histo tr:hover td { background: #fdfaf6; }
 
 /* Login */
-.login { max-width: 360px; margin: 90px auto; }
+.login-fond { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
+.login { width: 100%; max-width: 380px; text-align: center; }
+.login .carte { padding: 36px 32px; }
+.login h2 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--acier); margin: 18px 0 24px; font-weight: 700; }
+.login input { text-align: left; }
+.login .erreur { color: var(--rouge); font-size: 13px; margin: 10px 0 0; }
+.pied-login { margin-top: 22px; font-size: 12px; color: var(--acier); }
 
 /* ====================================================== */
 /* ========== DOCUMENT ANGEBOT — TEMPLATE CRISPIN V3 ===== */

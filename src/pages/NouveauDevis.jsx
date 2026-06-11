@@ -4,7 +4,7 @@ import DocumentAngebot from '../components/DocumentAngebot.jsx'
 
 const TVA = 0.19
 
-export default function NouveauDevis({ devisExistant }) {
+export default function NouveauDevis({ devisExistant, clientPrecharge }) {
   const [prestations, setPrestations] = useState([])
   const [client, setClient] = useState({ civilite: 'Frau', prenom: '', nom: '', adresse: '', ville: '' })
   const [projet, setProjet] = useState('')
@@ -40,6 +40,20 @@ export default function NouveauDevis({ devisExistant }) {
       setNumeroClient(devisExistant.numero_client || null)
     }
   }, [devisExistant])
+
+  useEffect(() => {
+    if (clientPrecharge) {
+      setClient({
+        civilite: clientPrecharge.civilite || 'Frau',
+        prenom: clientPrecharge.prenom || '',
+        nom: clientPrecharge.nom || '',
+        adresse: clientPrecharge.adresse || '',
+        ville: clientPrecharge.ville || '',
+      })
+      setNumeroClient(clientPrecharge.numero || null)
+      setProjet(''); setArchitecte(''); setLignes([]); setNumero(null); setEnregistre(false)
+    }
+  }, [clientPrecharge])
 
   const groupes = useMemo(() => {
     const map = {}

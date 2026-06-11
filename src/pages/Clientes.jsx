@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, fmt } from '../lib/supabase'
 
-export default function Clientes() {
+export default function Clientes({ onNouveauDevis }) {
   const [clients, setClients] = useState([])
   const [recherche, setRecherche] = useState('')
   const [edition, setEdition] = useState(null) // client en cours d'édition
@@ -73,7 +73,8 @@ export default function Clientes() {
                   <td style={{ whiteSpace: 'nowrap', fontSize: 12, color: '#888' }}>
                     {c.premiere_annee ? (c.premiere_annee === c.derniere_annee ? c.premiere_annee : `${c.premiere_annee}–${c.derniere_annee}`) : ''}
                   </td>
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn petit" onClick={() => onNouveauDevis(c)}>+ Presupuesto</button>{' '}
                     <button className="btn petit sec" onClick={() => setEdition({ ...c })}>{sauve === c.id ? '✓' : 'Editar'}</button>
                   </td>
                 </tr>

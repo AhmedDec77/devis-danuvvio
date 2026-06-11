@@ -11,6 +11,7 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [page, setPage] = useState('nouveau')
   const [devisACharger, setDevisACharger] = useState(null)
+  const [clientACharger, setClientACharger] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -20,7 +21,8 @@ export default function App() {
 
   if (!session) return <Login />
 
-  const ouvrirDevis = (d) => { setDevisACharger(d); setPage('nouveau') }
+  const ouvrirDevis = (d) => { setDevisACharger(d); setClientACharger(null); setPage('nouveau') }
+  const nouveauDevisPour = (c) => { setDevisACharger(null); setClientACharger(c); setPage('nouveau') }
 
   return (
     <>
@@ -31,7 +33,7 @@ export default function App() {
           <span className="app-nom">Presupuestos</span>
         </div>
         <nav>
-          <button className={page === 'nouveau' ? 'actif' : ''} onClick={() => { setDevisACharger(null); setPage('nouveau') }}>+ Nuevo presupuesto</button>
+          <button className={page === 'nouveau' ? 'actif' : ''} onClick={() => { setDevisACharger(null); setClientACharger(null); setPage('nouveau') }}>+ Nuevo presupuesto</button>
           <button className={page === 'historique' ? 'actif' : ''} onClick={() => setPage('historique')}>Historial</button>
           <button className={page === 'facturas' ? 'actif' : ''} onClick={() => setPage('facturas')}>Facturas</button>
           <button className={page === 'clientes' ? 'actif' : ''} onClick={() => setPage('clientes')}>Clientes</button>
@@ -42,10 +44,10 @@ export default function App() {
           <button onClick={() => supabase.auth.signOut()}>Salir</button>
         </div>
       </header>
-      {page === 'nouveau' && <NouveauDevis devisExistant={devisACharger} />}
+      {page === 'nouveau' && <NouveauDevis devisExistant={devisACharger} clientPrecharge={clientACharger} />}
       {page === 'historique' && <Historique onOuvrir={ouvrirDevis} />}
       {page === 'facturas' && <Facturas />}
-      {page === 'clientes' && <Clientes />}
+      {page === 'clientes' && <Clientes onNouveauDevis={nouveauDevisPour} />}
       {page === 'catalogue' && <Catalogue />}
     </>
   )

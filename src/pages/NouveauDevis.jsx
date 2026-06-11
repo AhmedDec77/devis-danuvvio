@@ -15,6 +15,7 @@ export default function NouveauDevis({ devisExistant }) {
   const [lignes, setLignes] = useState([])
   const [apercu, setApercu] = useState(false)
   const [numero, setNumero] = useState(null)
+  const [numeroClient, setNumeroClient] = useState(null)
   const [enregistre, setEnregistre] = useState(false)
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function NouveauDevis({ devisExistant }) {
       setModeDin(!!devisExistant.mode_din)
       setLignes(devisExistant.lignes || [])
       setNumero(devisExistant.numero)
+      setNumeroClient(devisExistant.numero_client || null)
     }
   }, [devisExistant])
 
@@ -124,11 +126,19 @@ export default function NouveauDevis({ devisExistant }) {
       const { data } = await supabase.rpc('prochain_numero')
       num = data; setNumero(num)
     }
+    let numClient = numeroClient
+    if (client.nom) {
+      const { data } = await supabase.rpc('obtenir_numero_client', {
+        p_civilite: client.civilite, p_prenom: client.prenom, p_nom: client.nom,
+        p_adresse: client.adresse, p_ville: client.ville,
+      })
+      if (data) { numClient = data; setNumeroClient(data) }
+    }
     const payload = {
       numero: num,
       client_civilite: client.civilite, client_prenom: client.prenom, client_nom: client.nom,
       client_adresse: client.adresse, client_ville: client.ville,
-      titre: projet, architecte, mode_din: modeDin, niveau_prix: niveau,
+      titre: projet, architecte, mode_din: modeDin, niveau_prix: niveau, numero_client: numClient,
       total_ht: totalHT, tva, total_ttc: ttc, lignes, statut: 'borrador',
     }
     if (devisExistant?.id) await supabase.from('devis').update(payload).eq('id', devisExistant.id)
@@ -153,7 +163,7 @@ export default function NouveauDevis({ devisExistant }) {
           <button className="btn sec" onClick={() => setApercu(false)}>← Volver a editar</button>
           <button className="btn" onClick={() => window.print()}>Imprimir / Guardar PDF</button>
         </div>
-        <DocumentAngebot numero={numero} client={client} architecte={architecte} projet={projet}
+        <DocumentAngebot numero={numero} numeroClient={numeroClient} client={client} architecte={architecte} projet={projet}
           lignes={lignes} totalHT={totalHT} tva={tva} ttc={ttc} modeDin={modeDin} />
       </>
     )

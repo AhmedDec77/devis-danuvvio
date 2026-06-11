@@ -1,25 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmt } from '../lib/supabase'
 import Logo from './Logo.jsx'
-
-const SOCIETE = {
-  nom: 'Handwerker Crispin München',
-  titulaire: 'Danuvvio Milwaukee Crispin Leon',
-  rue: 'Rudolfstraße 11',
-  ville: '82152 Planegg',
-  tel: '0176 / 34 388 949',
-  email: 'handwerkercrispin@gmail.com',
-  iban: 'DE85 7601 0085 0179 4088 57',
-  bic: 'PBNKDEFF',
-  banque: 'Postbank',
-  betriebsNr: '7164410',
-  ustId: '144/184/50267',
-}
+import { SOCIETE } from '../lib/societe.js'
 
 const PAGE_MM = 297            // hauteur A4
 const PX_PAR_MM = 96 / 25.4    // conversion px ↔ mm à 96 dpi
 
-export default function DocumentAngebot({ numero, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, validiteMois = 2 }) {
+export default function DocumentAngebot({ numero, numeroClient, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, validiteMois = 2 }) {
   const ref = useRef(null)
   const [pages, setPages] = useState(1)
 
@@ -119,6 +106,7 @@ export default function DocumentAngebot({ numero, client, architecte, projet, li
                 <div className="doc-info-titre">Angebotsdaten:</div>
                 Datum: {date}<br />
                 Angebots-Nr.: {numero}<br />
+                {numeroClient && <>Kunden-Nr.: {numeroClient}<br /></>}
                 Gültig bis: {validite}
               </div>
             </div>

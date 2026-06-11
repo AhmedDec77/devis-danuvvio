@@ -4,6 +4,7 @@ import Logo from './components/Logo.jsx'
 import NouveauDevis from './pages/NouveauDevis.jsx'
 import Historique from './pages/Historique.jsx'
 import Catalogue from './pages/Catalogue.jsx'
+import Facturas from './pages/Facturas.jsx'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -31,6 +32,7 @@ export default function App() {
         <nav>
           <button className={page === 'nouveau' ? 'actif' : ''} onClick={() => { setDevisACharger(null); setPage('nouveau') }}>+ Nuevo presupuesto</button>
           <button className={page === 'historique' ? 'actif' : ''} onClick={() => setPage('historique')}>Historial</button>
+          <button className={page === 'facturas' ? 'actif' : ''} onClick={() => setPage('facturas')}>Facturas</button>
           <button className={page === 'catalogue' ? 'actif' : ''} onClick={() => setPage('catalogue')}>Precios</button>
         </nav>
         <div className="droite">
@@ -40,6 +42,7 @@ export default function App() {
       </header>
       {page === 'nouveau' && <NouveauDevis devisExistant={devisACharger} />}
       {page === 'historique' && <Historique onOuvrir={ouvrirDevis} />}
+      {page === 'facturas' && <Facturas />}
       {page === 'catalogue' && <Catalogue />}
     </>
   )

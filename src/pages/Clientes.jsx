@@ -17,6 +17,7 @@ export default function Clientes({ onNouveauDevis }) {
     const c = edition
     await supabase.from('clients').update({
       civilite: c.civilite, prenom: c.prenom, nom: c.nom, adresse: c.adresse, ville: c.ville,
+      email: c.email || null, tel_fixe: c.tel_fixe || null, tel_mobile: c.tel_mobile || null,
     }).eq('id', c.id)
     setSauve(c.id); setEdition(null)
     setTimeout(() => setSauve(null), 1500)
@@ -30,6 +31,11 @@ export default function Clientes({ onNouveauDevis }) {
       p_adresse: nouveau.adresse || null, p_ville: nouveau.ville || null,
     })
     if (error) { setMessageCreation('Error al crear el cliente.'); return }
+    if (nouveau.email || nouveau.tel_mobile || nouveau.tel_fixe) {
+      await supabase.from('clients').update({
+        email: nouveau.email || null, tel_mobile: nouveau.tel_mobile || null, tel_fixe: nouveau.tel_fixe || null,
+      }).eq('numero', numero)
+    }
     const dejaConnu = clients.some((x) => x.numero === numero)
     setMessageCreation(dejaConnu
       ? `Este cliente ya existía: ${numero} (ficha actualizada).`
@@ -74,6 +80,9 @@ export default function Clientes({ onNouveauDevis }) {
               <div><label>Apellido *</label><input value={nouveau.nom} onChange={(e) => setNouveau({ ...nouveau, nom: e.target.value })} /></div>
               <div><label>Dirección</label><input value={nouveau.adresse} placeholder="Calle y número" onChange={(e) => setNouveau({ ...nouveau, adresse: e.target.value })} /></div>
               <div><label>CP y ciudad</label><input value={nouveau.ville} placeholder="81379 München" onChange={(e) => setNouveau({ ...nouveau, ville: e.target.value })} /></div>
+              <div><label>Email</label><input type="email" value={nouveau.email || ''} onChange={(e) => setNouveau({ ...nouveau, email: e.target.value })} /></div>
+              <div><label>Tel. móvil</label><input value={nouveau.tel_mobile || ''} placeholder="0176 ..." onChange={(e) => setNouveau({ ...nouveau, tel_mobile: e.target.value })} /></div>
+              <div><label>Tel. fijo</label><input value={nouveau.tel_fixe || ''} placeholder="089 ..." onChange={(e) => setNouveau({ ...nouveau, tel_fixe: e.target.value })} /></div>
             </div>
             <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
               <button className="btn petit" onClick={creer}>Crear cliente</button>
@@ -83,7 +92,7 @@ export default function Clientes({ onNouveauDevis }) {
         )}
         <table className="histo">
           <thead>
-            <tr><th>Nº</th><th>Cliente</th><th>Dirección</th><th>Ciudad</th><th>Docs</th><th>Volumen €</th><th>Años</th><th></th></tr>
+            <tr><th>Nº</th><th>Cliente</th><th>Dirección</th><th>Ciudad</th><th>Email</th><th>Móvil</th><th>Fijo</th><th>Volumen €</th><th></th></tr>
           </thead>
           <tbody>
             {filtres.map((c) => (
@@ -98,8 +107,11 @@ export default function Clientes({ onNouveauDevis }) {
                     <input value={edition.nom} placeholder="Apellido" onChange={(e) => setEdition({ ...edition, nom: e.target.value })} />
                   </td>
                   <td><input value={edition.adresse || ''} onChange={(e) => setEdition({ ...edition, adresse: e.target.value })} /></td>
-                  <td><input value={edition.ville || ''} onChange={(e) => setEdition({ ...edition, ville: e.target.value })} style={{ width: 130 }} /></td>
-                  <td colSpan="3"></td>
+                  <td><input value={edition.ville || ''} onChange={(e) => setEdition({ ...edition, ville: e.target.value })} style={{ width: 120 }} /></td>
+                  <td><input type="email" value={edition.email || ''} placeholder="email" onChange={(e) => setEdition({ ...edition, email: e.target.value })} style={{ width: 160 }} /></td>
+                  <td><input value={edition.tel_mobile || ''} placeholder="0176..." onChange={(e) => setEdition({ ...edition, tel_mobile: e.target.value })} style={{ width: 110 }} /></td>
+                  <td><input value={edition.tel_fixe || ''} placeholder="089..." onChange={(e) => setEdition({ ...edition, tel_fixe: e.target.value })} style={{ width: 110 }} /></td>
+                  <td></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn petit" onClick={enregistrer}>Guardar</button>{' '}
                     <button className="btn petit sec" onClick={() => setEdition(null)}>✕</button>
@@ -111,11 +123,10 @@ export default function Clientes({ onNouveauDevis }) {
                   <td>{c.civilite} {c.prenom} <b>{c.nom}</b></td>
                   <td>{c.adresse}</td>
                   <td>{c.ville}</td>
-                  <td>{c.nb_docs_historique || ''}</td>
+                  <td>{c.email ? <a href={'mailto:' + c.email} style={{ color: 'var(--rouge)' }}>{c.email}</a> : ''}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{c.tel_mobile ? <a href={'tel:' + c.tel_mobile.replace(/\s/g, '')} style={{ color: 'inherit' }}>{c.tel_mobile}</a> : ''}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{c.tel_fixe ? <a href={'tel:' + c.tel_fixe.replace(/\s/g, '')} style={{ color: 'inherit' }}>{c.tel_fixe}</a> : ''}</td>
                   <td>{c.volume_historique ? fmt(c.volume_historique) : ''}</td>
-                  <td style={{ whiteSpace: 'nowrap', fontSize: 12, color: '#888' }}>
-                    {c.premiere_annee ? (c.premiere_annee === c.derniere_annee ? c.premiere_annee : `${c.premiere_annee}–${c.derniere_annee}`) : ''}
-                  </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn petit" onClick={() => onNouveauDevis(c)}>+ Presupuesto</button>{' '}
                     <button className="btn petit sec" onClick={() => setEdition({ ...c })}>{sauve === c.id ? '✓' : 'Editar'}</button>

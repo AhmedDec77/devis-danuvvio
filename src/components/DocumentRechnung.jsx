@@ -13,7 +13,7 @@ const LIBELLES = {
   schluss: 'Schlusszahlung (30 % der Auftragssumme) — nach gemeinsamer Abnahme und Mängelbeseitigung',
 }
 
-export default function DocumentRechnung({ facture, devis, facturesPrecedentes = [] }) {
+export default function DocumentRechnung({ facture, devis, facturesPrecedentes = [], nachtraege = [] }) {
   const date = new Date(facture.date_facture || Date.now()).toLocaleDateString('de-DE')
   const echeance = new Date(new Date(facture.date_facture || Date.now()).getTime() + 14 * 864e5).toLocaleDateString('de-DE')
   const estSchluss = facture.type === 'schluss'
@@ -88,7 +88,9 @@ export default function DocumentRechnung({ facture, devis, facturesPrecedentes =
                     <td>
                       <b>{LIBELLES[facture.type]}</b>
                       <div className="desc-detail">
-                        Auftragssumme gemäß Kostenvoranschlag Nr. {devis.numero}: {fmt(facture.base_ht)} € netto
+                        {nachtraege.length > 0
+                          ? <>Auftragssumme gemäß Kostenvoranschlag Nr. {devis.numero} inkl. Nachträge N1–N{nachtraege.length}: {fmt(facture.base_ht)} € netto</>
+                          : <>Auftragssumme gemäß Kostenvoranschlag Nr. {devis.numero}: {fmt(facture.base_ht)} € netto</>}
                         {'\n'}Davon {facture.pourcentage} %
                       </div>
                     </td>
@@ -102,8 +104,24 @@ export default function DocumentRechnung({ facture, devis, facturesPrecedentes =
                       <td><b>Gesamtleistung gemäß Kostenvoranschlag Nr. {devis.numero}</b>
                         <div className="desc-detail">{LIBELLES.schluss}</div>
                       </td>
-                      <td className="num">{fmt(facture.base_ht)} €</td>
+                      <td className="num">{fmt(devis.total_ht)} €</td>
                     </tr>
+                    {nachtraege.map((n, i) => (
+                      <tr key={'n' + i}>
+                        <td>{2 + i}</td>
+                        <td><b>Nachtrag N{n.numero}</b>
+                          <div className="desc-detail">{n.description}</div>
+                        </td>
+                        <td className="num">{Number(n.montant_ht) >= 0 ? '' : '− '}{fmt(Math.abs(n.montant_ht))} €</td>
+                      </tr>
+                    ))}
+                    {nachtraege.length > 0 && (
+                      <tr>
+                        <td></td>
+                        <td><b>Auftragssumme inkl. Nachträge (netto)</b></td>
+                        <td className="num"><b>{fmt(facture.base_ht)} €</b></td>
+                      </tr>
+                    )}
                     {facturesPrecedentes.map((f, i) => (
                       <tr key={i} className="doc-materiel">
                         <td></td>

@@ -67,8 +67,10 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
     return Object.fromEntries(Object.entries(map).sort())
   }, [prestations, vueCatalogue])
 
-  const prixNiveau = (p, niv = niveau) =>
-    niv === 'bas' ? Number(p.prix_bas) : niv === 'haut' ? Number(p.prix_haut) : Number(p.prix_median)
+  const prixNiveau = (p, niv = niveau) => {
+    const v = niv === 'bas' ? p.prix_bas : niv === 'haut' ? p.prix_haut : p.prix_median
+    return v === null || v === undefined ? null : Number(v)
+  }
 
   const ajouter = (p) => {
     setLignes([...lignes, {
@@ -76,7 +78,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
       description: p.nom,
       quantite: 1,
       unite: p.unite,
-      prix_unitaire: prixNiveau(p),
+      prix_unitaire: prixNiveau(p) ?? 0,
       din276: p.din276 || '300',
       din276_libelle: p.din276_libelle || 'Baukonstruktionen',
       materiaux: [],
@@ -95,7 +97,8 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
     setNiveau(niv)
     setLignes(lignes.map((l) => {
       const p = prestations.find((x) => x.id === l.prestation_id)
-      return p ? { ...l, prix_unitaire: prixNiveau(p, niv) } : l
+      const v = p ? prixNiveau(p, niv) : null
+      return v !== null ? { ...l, prix_unitaire: v } : l
     }))
     setEnregistre(false)
   }
@@ -236,7 +239,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
             {items.map((p) => (
               <div className="prestation" key={p.id}>
                 <span className="nom">{p.nom}</span>
-                <span className="prix">{fmt(prixNiveau(p))} €</span>
+                <span className="prix">{prixNiveau(p) !== null ? fmt(prixNiveau(p)) + ' €' : <i style={{ color: '#c00000' }}>precio a definir</i>}</span>
                 <button className="btn petit" onClick={() => ajouter(p)}>+ Añadir</button>
               </div>
             ))}

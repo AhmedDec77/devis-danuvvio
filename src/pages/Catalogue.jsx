@@ -13,8 +13,9 @@ export default function Catalogue() {
     setPrestations(prestations.map((p) => (p.id === id ? { ...p, [champ]: val } : p)))
 
   const enregistrer = async (p) => {
+    const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
     await supabase.from('prestations').update({
-      nom: p.nom, prix_bas: p.prix_bas, prix_median: p.prix_median, prix_haut: p.prix_haut, actif: p.actif,
+      nom: p.nom, prix_bas: num(p.prix_bas), prix_median: num(p.prix_median), prix_haut: num(p.prix_haut), actif: p.actif,
     }).eq('id', p.id)
     setSauve(p.id)
     setTimeout(() => setSauve(null), 1500)
@@ -26,7 +27,7 @@ export default function Catalogue() {
       <div className="carte">
         <h2>Catálogo de precios</h2>
         <p style={{ fontSize: 13, color: '#666' }}>
-          Precios calculados a partir de 330 presupuestos y facturas 2017–2026. Modifica y pulsa Guardar.
+          Precios calculados sobre los trabajos de los últimos 2 años (2025–2026). Los campos vacíos («a definir») corresponden a trabajos no realizados recientemente: revisa el precio antes de usarlos.
         </p>
         <table className="histo">
           <thead><tr><th>Trabajo</th><th>Bajo €</th><th>Medio €</th><th>Alto €</th><th>Activo</th><th></th></tr></thead>
@@ -55,7 +56,7 @@ function FragmentLigne({ p, nouvelle, maj, enregistrer, sauve }) {
         <td><input value={p.nom} onChange={(e) => maj(p.id, 'nom', e.target.value)} style={{ fontSize: 13 }} /></td>
         {['prix_bas', 'prix_median', 'prix_haut'].map((c) => (
           <td key={c} style={{ width: 90 }}>
-            <input type="number" value={p[c]} onChange={(e) => maj(p.id, c, e.target.value)} />
+            <input type="number" value={p[c] ?? ''} placeholder="a definir" onChange={(e) => maj(p.id, c, e.target.value)} />
           </td>
         ))}
         <td style={{ textAlign: 'center' }}>

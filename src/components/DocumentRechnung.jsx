@@ -24,12 +24,13 @@ export default function DocumentRechnung({ facture, devis, facturesPrecedentes =
         <thead>
           <tr><td>
             <div className="doc-entete">
-              <div className="doc-logo"><Logo width={130} /></div>
+              <div className="doc-logo"><Logo width={150} /></div>
               <div className="doc-entete-droite">
                 <div className="doc-grand-titre">{TITRES[facture.type] || 'RECHNUNG'}</div>
                 <div className="doc-numero">Nr. {facture.numero}</div>
                 <div className="doc-coordonnees">
-                  {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel} · {SOCIETE.email}
+                  {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel}<br />
+                  {SOCIETE.email}
                 </div>
               </div>
             </div>

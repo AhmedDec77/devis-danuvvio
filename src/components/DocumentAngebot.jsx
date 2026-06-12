@@ -65,12 +65,14 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
         <thead>
           <tr><td>
             <div className="doc-entete">
-              <div className="doc-logo"><Logo width={130} /></div>
+              <div className="doc-logo"><Logo width={150} /></div>
               <div className="doc-entete-droite">
                 <div className="doc-grand-titre">KOSTENVORANSCHLAG</div>
                 <div className="doc-numero">Nr. {numero}</div>
+                {modeDin && <div className="doc-sous-titre">Strukturiert nach DIN 276 Kostengruppen</div>}
                 <div className="doc-coordonnees">
-                  {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel} · {SOCIETE.email}
+                  {SOCIETE.rue} · {SOCIETE.ville} · {SOCIETE.tel}<br />
+                  {SOCIETE.email}
                 </div>
               </div>
             </div>
@@ -83,8 +85,6 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
         </tfoot>
         <tbody>
           <tr><td>
-            {modeDin && <div className="doc-sous-titre">Strukturiert nach DIN 276 Kostengruppen</div>}
-
             <div className="doc-infos">
               <div>
                 <div className="doc-info-titre">Auftraggeber / Bauherr:</div>

@@ -191,8 +191,12 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
   // Changement date début OU durée → recalcule la date de fin
   const majDebutOuDuree = async (t, champ, val) => {
     const debut = champ === 'date_debut' ? val : t.date_debut
-    const duree = champ === 'duree_ouvree' ? Number(val) : t.duree_ouvree
+    const duree = champ === 'duree_ouvree' ? Number(val) : Number(t.duree_ouvree || 1)
     const sam = champ === 'samedi_ouvre' ? val : t.samedi_ouvre
+    if (!debut) { // pas de date de début : on stocke juste le champ
+      await supabase.from('taches').update({ [champ]: val }).eq('id', t.id)
+      await onChange(); return
+    }
     const { fin } = calculerFin(debut, duree || 1, sam)
     await supabase.from('taches').update({ [champ]: val, date_fin: fin }).eq('id', t.id)
     await onChange(); onRecadrer()
@@ -294,7 +298,7 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
             <tr key={t.id}>
               <td><input defaultValue={t.titre} style={{ fontSize: 13, minWidth: 150 }} onBlur={(e) => e.target.value !== t.titre && majTitre(t, e.target.value)} /></td>
               <td><input type="date" value={t.date_debut || ''} onChange={(e) => majDebutOuDuree(t, 'date_debut', e.target.value)} style={{ width: 130 }} /></td>
-              <td><input type="number" min="1" defaultValue={t.duree_ouvree} onBlur={(e) => Number(e.target.value) !== t.duree_ouvree && majDebutOuDuree(t, 'duree_ouvree', Number(e.target.value))} style={{ width: 50 }} /></td>
+              <td><input type="number" min="1" value={t.duree_ouvree || 1} onChange={(e) => majDebutOuDuree(t, 'duree_ouvree', Math.max(1, Number(e.target.value) || 1))} style={{ width: 50 }} /></td>
               <td style={{ textAlign: 'center' }}><input type="checkbox" checked={t.samedi_ouvre} onChange={(e) => majDebutOuDuree(t, 'samedi_ouvre', e.target.checked)} style={{ width: 'auto' }} /></td>
               <td><input type="date" value={t.date_fin || ''} onChange={(e) => majFinManuelle(t, e.target.value)} style={{ width: 130 }} /></td>
               <td>

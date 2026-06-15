@@ -211,8 +211,9 @@ function Groupe({ g, startPos }) {
         </tr>
       )}
       {g.lignes.map((l, i) => {
-        const n = startPos()
-        const numPos = g.code && g.code !== '000' ? `${g.code}.${String(i + 1).padStart(2, '0')}` : n
+        const auto = startPos()
+        // Numéro manuel prioritaire ; sinon compteur global continu (jamais de répétition)
+        const numPos = (l.numero_position && String(l.numero_position).trim()) || auto
         return <Ligne key={i} l={l} numPos={numPos} />
       })}
     </>

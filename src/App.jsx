@@ -6,6 +6,8 @@ import Historique from './pages/Historique.jsx'
 import Catalogue from './pages/Catalogue.jsx'
 import Facturas from './pages/Facturas.jsx'
 import Clientes from './pages/Clientes.jsx'
+import Proyectos from './pages/Proyectos.jsx'
+import Recursos from './pages/Recursos.jsx'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -37,6 +39,8 @@ export default function App() {
           <button className={page === 'historique' ? 'actif' : ''} onClick={() => setPage('historique')}>Historial</button>
           <button className={page === 'facturas' ? 'actif' : ''} onClick={() => setPage('facturas')}>Facturas</button>
           <button className={page === 'clientes' ? 'actif' : ''} onClick={() => setPage('clientes')}>Clientes</button>
+          <button className={page === 'proyectos' ? 'actif' : ''} onClick={() => setPage('proyectos')}>Proyectos</button>
+          <button className={page === 'recursos' ? 'actif' : ''} onClick={() => setPage('recursos')}>Recursos</button>
           <button className={page === 'catalogue' ? 'actif' : ''} onClick={() => setPage('catalogue')}>Precios</button>
         </nav>
         <div className="droite">
@@ -48,6 +52,8 @@ export default function App() {
       {page === 'historique' && <Historique onOuvrir={ouvrirDevis} />}
       {page === 'facturas' && <Facturas />}
       {page === 'clientes' && <Clientes onNouveauDevis={nouveauDevisPour} />}
+      {page === 'proyectos' && <Proyectos />}
+      {page === 'recursos' && <Recursos />}
       {page === 'catalogue' && <Catalogue />}
     </>
   )

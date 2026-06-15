@@ -9,7 +9,11 @@ export function parseDate(s) {
 }
 
 export function toISO(d) {
-  return d.toISOString().slice(0, 10)
+  // Heure locale, JAMAIS toISOString() qui passe en UTC et décale d'un jour
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const j = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${j}`
 }
 
 export function fmtDate(s) {

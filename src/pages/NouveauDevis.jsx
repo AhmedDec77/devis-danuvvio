@@ -253,6 +253,11 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
           <h2>4 · Posiciones del presupuesto</h2>
           {lignes.map((l, i) => (
             <div key={i} style={{ borderBottom: '2px solid #eee', padding: '12px 0' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+                <input value={l.numero_position || ''} placeholder="Nº pos. (auto)" title="Número de posición — déjalo vacío para automático, o escribe el tuyo (ej. 300.18a)"
+                  onChange={(e) => maj(i, 'numero_position', e.target.value)} style={{ width: 110, fontSize: 12 }} />
+                <span style={{ fontSize: 11, color: '#999', paddingTop: 8 }}>déjalo vacío = automático</span>
+              </div>
               <div className="ligne" style={{ borderBottom: 'none' }}>
                 <textarea value={l.description} placeholder="Descripción en alemán (1ª línea = título en negrita)" onChange={(e) => maj(i, 'description', e.target.value)} />
                 <input type="number" min="0" step="0.5" value={l.quantite} onChange={(e) => maj(i, 'quantite', e.target.value)} />

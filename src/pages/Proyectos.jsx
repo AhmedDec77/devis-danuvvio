@@ -171,6 +171,22 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
   const [formTache, setFormTache] = useState({ titre: '', date_debut: projet.date_debut, duree: 2, samedi: false })
   const [creationPers, setCreationPers] = useState(null)
 
+  // Auto-corrige les fins incohérentes (fin < début) héritées d'anciennes données
+  useEffect(() => {
+    (async () => {
+      let corrige = false
+      for (const t of taches) {
+        if (t.date_debut && (!t.date_fin || t.date_fin < t.date_debut)) {
+          const { fin } = calculerFin(t.date_debut, Number(t.duree_ouvree || 1), t.samedi_ouvre)
+          await supabase.from('taches').update({ date_fin: fin }).eq('id', t.id)
+          corrige = true
+        }
+      }
+      if (corrige) { await onChange(); onRecadrer() }
+    })()
+    // eslint-disable-next-line
+  }, [projet.id])
+
   const allocsDe = (tId) => allocations.filter((a) => a.tache_id === tId)
   const persDe = (tId) => allocsDe(tId).map((a) => personnel.find((p) => p.id === a.personnel_id)).filter(Boolean)
 

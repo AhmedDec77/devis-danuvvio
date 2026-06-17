@@ -89,3 +89,15 @@ export function dureeOuvree(debutISO, finISO, samediOuvre = false) {
   }
   return n
 }
+
+// Jour ouvré le plus proche (cherche en avant ET en arrière, prend le plus proche)
+export function ouvreLePlusProche(d, samediOuvre = false) {
+  if (estOuvre(d, samediOuvre)) return new Date(d)
+  for (let i = 1; i <= 7; i++) {
+    const av = new Date(d); av.setDate(av.getDate() + i)
+    if (estOuvre(av, samediOuvre)) return av
+    const ar = new Date(d); ar.setDate(ar.getDate() - i)
+    if (estOuvre(ar, samediOuvre)) return ar
+  }
+  return new Date(d)
+}

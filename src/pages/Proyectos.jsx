@@ -55,6 +55,7 @@ export default function Proyectos() {
       const rows = devis.lignes.map((l, i) => ({
         projet_id: proj.id,
         titre: String(l.description || '').split('\n')[0].slice(0, 80),
+        numero_position: (l.numero_position && String(l.numero_position).trim()) || String(i + 1),
         date_debut: debut, date_fin: fin, duree_ouvree: 2, samedi_ouvre: false,
         nb_personnes: 1, ordre: i,
       }))
@@ -228,6 +229,10 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
     await supabase.from('taches').update({ titre: val }).eq('id', t.id); onChange()
   }
 
+  const majNumPos = async (t, val) => {
+    await supabase.from('taches').update({ numero_position: val || null }).eq('id', t.id); onChange()
+  }
+
   const supprimerTache = async (t) => {
     await supabase.from('taches').delete().eq('id', t.id)
     await onChange(); onRecadrer()
@@ -289,7 +294,9 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
               const ps = persDe(t.id)
               return (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                  <div style={{ width: 190, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.titre}>{t.titre}</div>
+                  <div style={{ width: 190, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={(t.numero_position ? t.numero_position + ' · ' : '') + t.titre}>
+                    {t.numero_position && <b style={{ color: '#6d6d6d', marginRight: 4 }}>{t.numero_position}</b>}{t.titre}
+                  </div>
                   <div style={{ flex: 1, position: 'relative', height: 24, background: '#f4f1ec', borderRadius: 5 }}>
                     {/* barre */}
                     <div style={{ position: 'absolute', left: `${g}%`, width: `${w}%`, height: 24, background: couleurGantt, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 16, gap: 3 }}>
@@ -308,10 +315,11 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
 
       <h2 style={{ marginTop: 22 }}>Tareas / posiciones</h2>
       <table className="histo">
-        <thead><tr><th>Tarea</th><th>Inicio</th><th>Días</th><th>Sáb.</th><th>Fin (auto / editable)</th><th>Equipo</th><th></th></tr></thead>
+        <thead><tr><th style={{ width: 70 }}>Pos</th><th>Tarea</th><th>Inicio</th><th>Días</th><th>Sáb.</th><th>Fin (auto / editable)</th><th>Equipo</th><th></th></tr></thead>
         <tbody>
           {taches.map((t) => (
             <tr key={t.id}>
+              <td><input defaultValue={t.numero_position || ''} placeholder="—" style={{ width: 60, fontSize: 12 }} onBlur={(e) => e.target.value !== (t.numero_position || '') && majNumPos(t, e.target.value)} /></td>
               <td><input defaultValue={t.titre} style={{ fontSize: 13, minWidth: 150 }} onBlur={(e) => e.target.value !== t.titre && majTitre(t, e.target.value)} /></td>
               <td><input type="date" value={t.date_debut || ''} onChange={(e) => majDebutOuDuree(t, 'date_debut', e.target.value)} style={{ width: 130 }} /></td>
               <td><input type="number" min="1" value={t.duree_ouvree || 1} onChange={(e) => majDebutOuDuree(t, 'duree_ouvree', Math.max(1, Number(e.target.value) || 1))} style={{ width: 50 }} /></td>

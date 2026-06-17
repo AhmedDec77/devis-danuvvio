@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseDate, toISO, fmtDate, joursEntre, MOIS, JOURS_SEM, jour } from '../lib/dates'
-import { calculerFin, prochainOuvre } from '../lib/feries'
+import { calculerFin, prochainOuvre, ouvreLePlusProche, dureeOuvree } from '../lib/feries'
 
 // Teinte douce dérivée d'une couleur vive (mélange avec du blanc)
 function douce(hex, ratio = 0.55) {
@@ -171,6 +171,7 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
   const [nouvelleTache, setNouvelleTache] = useState(false)
   const [formTache, setFormTache] = useState({ titre: '', date_debut: projet.date_debut, duree: 2, samedi: false })
   const [creationPers, setCreationPers] = useState(null)
+  const [drag, setDrag] = useState(null) // {tacheId, mode:'move'|'resize', startX, origDebut, origFin, ganttWidth, previewDebut, previewFin}
 
   // Auto-corrige les fins incohérentes (fin < début) héritées d'anciennes données
   useEffect(() => {
@@ -282,6 +283,68 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
   }
   const MOIS_COURT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
+  // ---- Glisser-déposer des barres ----
+  const jourDepuisPct = (pct) => {
+    const d0 = parseDate(debut)
+    const dd = new Date(d0); dd.setDate(dd.getDate() + Math.round((pct / 100) * total))
+    return dd
+  }
+
+  const onBarMouseDown = (e, t, mode) => {
+    e.preventDefault(); e.stopPropagation()
+    const zone = e.currentTarget.closest('.gantt-zone')
+    const rect = zone.getBoundingClientRect()
+    setDrag({
+      tacheId: t.id, mode, startX: e.clientX, zoneLeft: rect.left, zoneWidth: rect.width,
+      origDebut: t.date_debut, origFin: t.date_fin, samedi: t.samedi_ouvre,
+      previewDebut: t.date_debut, previewFin: t.date_fin,
+    })
+  }
+
+  useEffect(() => {
+    if (!drag) return
+    const onMove = (e) => {
+      const deltaPx = e.clientX - drag.startX
+      const deltaJours = Math.round((deltaPx / drag.zoneWidth) * total)
+      setDrag((d) => {
+        if (!d) return d
+        if (d.mode === 'move') {
+          const nd = parseDate(d.origDebut); nd.setDate(nd.getDate() + deltaJours)
+          const nf = parseDate(d.origFin); nf.setDate(nf.getDate() + deltaJours)
+          return { ...d, previewDebut: toISO(nd), previewFin: toISO(nf) }
+        } else { // resize fin
+          const nf = parseDate(d.origFin); nf.setDate(nf.getDate() + deltaJours)
+          const minFin = parseDate(d.origDebut)
+          return { ...d, previewFin: toISO(nf < minFin ? minFin : nf) }
+        }
+      })
+    }
+    const onUp = async () => {
+      const d = drag
+      setDrag(null)
+      if (!d) return
+      const t = taches.find((x) => x.id === d.tacheId)
+      if (!t) return
+      if (d.mode === 'move') {
+        const snapDebut = toISO(ouvreLePlusProche(parseDate(d.previewDebut), d.samedi))
+        const snapFin = toISO(ouvreLePlusProche(parseDate(d.previewFin), d.samedi))
+        const duree = dureeOuvree(snapDebut, snapFin, d.samedi)
+        await supabase.from('taches').update({ date_debut: snapDebut, date_fin: snapFin, duree_ouvree: duree }).eq('id', t.id)
+      } else {
+        let snapFin = ouvreLePlusProche(parseDate(d.previewFin), d.samedi)
+        if (snapFin < parseDate(d.origDebut)) snapFin = parseDate(d.origDebut)
+        const snapFinISO = toISO(snapFin)
+        const duree = dureeOuvree(d.origDebut, snapFinISO, d.samedi)
+        await supabase.from('taches').update({ date_fin: snapFinISO, duree_ouvree: duree }).eq('id', t.id)
+      }
+      await onChange(); onRecadrer()
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp, { once: true })
+    return () => { window.removeEventListener('mousemove', onMove) }
+    // eslint-disable-next-line
+  }, [drag])
+
   return (
     <div className="carte">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -324,8 +387,11 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
             </div>
             {taches.map((t) => {
               if (!t.date_debut || !t.date_fin) return null
-              const g = Math.max(0, Math.min(99, posJour(t.date_debut)))
-              const finPct = Math.min(100, posJour(t.date_fin) + (100 / total)) // inclut le dernier jour
+              const estDrag = drag && drag.tacheId === t.id
+              const dDebut = estDrag ? drag.previewDebut : t.date_debut
+              const dFin = estDrag ? drag.previewFin : t.date_fin
+              const g = Math.max(0, Math.min(99.5, posJour(dDebut)))
+              const finPct = Math.min(100, posJour(dFin) + (100 / total)) // inclut le dernier jour
               const w = Math.max(1.5, finPct - g)
               const ps = persDe(t.id)
               return (
@@ -333,14 +399,25 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
                   <div style={{ width: 190, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={(t.numero_position ? t.numero_position + ' · ' : '') + t.titre}>
                     {t.numero_position && <b style={{ color: '#6d6d6d', marginRight: 4 }}>{t.numero_position}</b>}{t.titre}
                   </div>
-                  <div style={{ flex: 1, position: 'relative', height: 24, background: '#f4f1ec', borderRadius: 5 }}>
-                    {/* barre */}
-                    <div style={{ position: 'absolute', left: `${g}%`, width: `${w}%`, height: 24, background: couleurGantt, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 16, gap: 3 }}>
-                      {ps.map((p) => <span key={p.id} title={p.nom} style={{ width: 11, height: 11, borderRadius: '50%', background: douce(p.couleur, 0.15), border: '1.5px solid #fff' }} />)}
+                  <div className="gantt-zone" style={{ flex: 1, position: 'relative', height: 24, background: '#f4f1ec', borderRadius: 5 }}>
+                    {/* barre (déplaçable) */}
+                    <div onMouseDown={(e) => onBarMouseDown(e, t, 'move')}
+                      title={'Arrastra para mover · ' + fmtDate(dDebut) + ' → ' + fmtDate(dFin)}
+                      style={{ position: 'absolute', left: `${g}%`, width: `${w}%`, height: 24, background: estDrag ? couleurPoint : couleurGantt, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 16, gap: 3, cursor: 'grab', userSelect: 'none', transition: estDrag ? 'none' : 'background .15s' }}>
+                      {ps.map((p) => <span key={p.id} title={p.nom} style={{ width: 11, height: 11, borderRadius: '50%', background: douce(p.couleur, 0.15), border: '1.5px solid #fff', pointerEvents: 'none' }} />)}
+                      {/* poignée de redimensionnement (bord droit) */}
+                      <div onMouseDown={(e) => onBarMouseDown(e, t, 'resize')}
+                        title="Arrastra para cambiar el fin"
+                        style={{ position: 'absolute', right: 0, top: 0, width: 10, height: 24, cursor: 'ew-resize', borderRadius: '0 5px 5px 0', background: 'rgba(0,0,0,.08)' }} />
                     </div>
                     {/* point de départ */}
-                    <div title={'Inicio: ' + fmtDate(t.date_debut)}
-                      style={{ position: 'absolute', left: `calc(${g}% - 5px)`, top: 6, width: 12, height: 12, borderRadius: '50%', background: couleurPoint, border: '2px solid #fff', boxShadow: '0 0 0 1px ' + couleurPoint }} />
+                    <div style={{ position: 'absolute', left: `calc(${g}% - 5px)`, top: 6, width: 12, height: 12, borderRadius: '50%', background: couleurPoint, border: '2px solid #fff', boxShadow: '0 0 0 1px ' + couleurPoint, pointerEvents: 'none' }} />
+                    {/* étiquette dates pendant le drag */}
+                    {estDrag && (
+                      <div style={{ position: 'absolute', left: `${g}%`, top: -20, fontSize: 10, fontWeight: 700, color: couleurPoint, whiteSpace: 'nowrap' }}>
+                        {fmtDate(dDebut)} → {fmtDate(dFin)}
+                      </div>
+                    )}
                   </div>
                 </div>
               )

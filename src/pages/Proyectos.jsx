@@ -267,6 +267,21 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
   const couleurGantt = douce(projet.couleur || '#c00000', 0.5)
   const couleurPoint = projet.couleur || '#c00000'
 
+  // Graduations hebdomadaires (lundis) pour la règle du Gantt
+  const semaines = []
+  if (debut && fin) {
+    const d0 = parseDate(debut), d1 = parseDate(fin)
+    // premier lundi >= début
+    let cur = new Date(d0)
+    cur.setDate(cur.getDate() - ((cur.getDay() + 6) % 7)) // lundi de la semaine de début
+    while (cur <= d1) {
+      const left = (Math.round((cur - d0) / jour) / total) * 100
+      semaines.push({ date: new Date(cur), left, mois: cur.getMonth(), jourMois: cur.getDate() })
+      cur.setDate(cur.getDate() + 7)
+    }
+  }
+  const MOIS_COURT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
   return (
     <div className="carte">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -286,6 +301,27 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
       {dates.length > 0 && (
         <div style={{ marginTop: 18, overflowX: 'auto' }}>
           <div style={{ minWidth: 640 }}>
+            {/* Règle temporelle : mois + semaines */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 190, flexShrink: 0 }} />
+              <div style={{ flex: 1, position: 'relative', height: 32, borderBottom: '1.5px solid #ddd' }}>
+                {semaines.map((sm, k) => {
+                  const moisChange = k === 0 || sm.mois !== semaines[k - 1].mois
+                  return (
+                    <div key={k} style={{ position: 'absolute', left: `${sm.left}%`, bottom: 0, height: moisChange ? 32 : 8, borderLeft: moisChange ? '1.5px solid #bbb' : '1px solid #e4e4e4' }}>
+                      {moisChange && (
+                        <span style={{ position: 'absolute', top: -2, left: 3, fontSize: 11, fontWeight: 700, color: '#888', whiteSpace: 'nowrap' }}>
+                          {MOIS_COURT[sm.mois]}
+                        </span>
+                      )}
+                      <span style={{ position: 'absolute', bottom: 9, left: moisChange ? 3 : 2, fontSize: 9, color: '#bbb', whiteSpace: 'nowrap' }}>
+                        {sm.jourMois}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
             {taches.map((t) => {
               if (!t.date_debut || !t.date_fin) return null
               const g = Math.max(0, Math.min(99, posJour(t.date_debut)))

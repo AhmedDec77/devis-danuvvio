@@ -322,7 +322,7 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
               <td><input defaultValue={t.numero_position || ''} placeholder="—" style={{ width: 60, fontSize: 12 }} onBlur={(e) => e.target.value !== (t.numero_position || '') && majNumPos(t, e.target.value)} /></td>
               <td><input defaultValue={t.titre} style={{ fontSize: 13, minWidth: 150 }} onBlur={(e) => e.target.value !== t.titre && majTitre(t, e.target.value)} /></td>
               <td><input type="date" value={t.date_debut || ''} onChange={(e) => majDebutOuDuree(t, 'date_debut', e.target.value)} style={{ width: 130 }} /></td>
-              <td><input type="number" min="1" value={t.duree_ouvree || 1} onChange={(e) => majDebutOuDuree(t, 'duree_ouvree', Math.max(1, Number(e.target.value) || 1))} style={{ width: 50 }} /></td>
+              <td><input type="number" min="1" value={t.duree_ouvree || 1} onChange={(e) => majDebutOuDuree(t, 'duree_ouvree', Math.max(1, Number(e.target.value) || 1))} style={{ width: 72 }} /></td>
               <td style={{ textAlign: 'center' }}><input type="checkbox" checked={t.samedi_ouvre} onChange={(e) => majDebutOuDuree(t, 'samedi_ouvre', e.target.checked)} style={{ width: 'auto' }} /></td>
               <td><input type="date" value={t.date_fin || ''} onChange={(e) => majFinManuelle(t, e.target.value)} style={{ width: 130 }} /></td>
               <td>
@@ -359,7 +359,7 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: 160 }}><label>Tarea</label><input autoFocus value={formTache.titre} onChange={(e) => setFormTache({ ...formTache, titre: e.target.value })} /></div>
           <div><label>Inicio</label><input type="date" value={formTache.date_debut || ''} onChange={(e) => setFormTache({ ...formTache, date_debut: e.target.value })} /></div>
-          <div><label>Días</label><input type="number" min="1" value={formTache.duree} onChange={(e) => setFormTache({ ...formTache, duree: e.target.value })} style={{ width: 60 }} /></div>
+          <div><label>Días</label><input type="number" min="1" value={formTache.duree} onChange={(e) => setFormTache({ ...formTache, duree: e.target.value })} style={{ width: 72 }} /></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 9 }}>
             <input type="checkbox" id="sab" checked={formTache.samedi} onChange={(e) => setFormTache({ ...formTache, samedi: e.target.checked })} style={{ width: 'auto' }} />
             <label htmlFor="sab" style={{ margin: 0 }}>Sábado</label>

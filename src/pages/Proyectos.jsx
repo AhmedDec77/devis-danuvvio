@@ -3,6 +3,9 @@ import { supabase } from '../lib/supabase'
 import { parseDate, toISO, fmtDate, joursEntre, MOIS, JOURS_SEM, jour } from '../lib/dates'
 import { calculerFin, prochainOuvre, ouvreLePlusProche, dureeOuvree } from '../lib/feries'
 
+// Palette de couleurs distinctes par projet
+const COULEURS_PROJET = ['#c00000', '#1d4f9c', '#1a6b1a', '#b8860b', '#7b2d8e', '#0d7377', '#d84315', '#5d4037', '#34495e', '#c2185b']
+
 // Teinte douce dérivée d'une couleur vive (mélange avec du blanc)
 function douce(hex, ratio = 0.55) {
   const h = hex.replace('#', '')
@@ -41,12 +44,13 @@ export default function Proyectos() {
     if (!n?.nom?.trim() && !n?.devis_id) return
     const devis = devisAcceptes.find((d) => d.id === n.devis_id)
     const debut = n.date_debut || toISO(prochainOuvre(new Date()))
+    const couleur = n.couleur || COULEURS_PROJET[projets.length % COULEURS_PROJET.length]
     const { data: proj } = await supabase.from('projets').insert({
       nom: n.nom?.trim() || devis?.titre || `KV ${devis?.numero}`,
       devis_id: n.devis_id || null,
       client_nom: devis ? `${devis.client_civilite || ''} ${devis.client_nom}`.trim() : (n.client_nom || null),
       adresse: devis?.client_adresse || null,
-      date_debut: debut, date_fin: debut,
+      date_debut: debut, date_fin: debut, couleur,
     }).select().single()
 
     // Tâches depuis les positions : toutes démarrent au début projet, 2 jours estimés (Danuvvio ajuste ensuite)
@@ -89,7 +93,7 @@ export default function Proyectos() {
       <div className="carte">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ margin: 0 }}>Calendario de proyectos</h2>
-          <button className="btn petit" onClick={() => setNouveauProjet(nouveauProjet ? null : { nom: '', devis_id: '', date_debut: '' })}>
+          <button className="btn petit" onClick={() => setNouveauProjet(nouveauProjet ? null : { nom: '', devis_id: '', date_debut: '', couleur: COULEURS_PROJET[projets.length % COULEURS_PROJET.length] })}>
             {nouveauProjet ? '✕ Cancelar' : '+ Nuevo proyecto'}
           </button>
         </div>
@@ -109,6 +113,15 @@ export default function Proyectos() {
               <div><label>Nombre {nouveauProjet.devis_id ? '(opcional)' : '*'}</label>
                 <input value={nouveauProjet.nom} onChange={(e) => setNouveauProjet({ ...nouveauProjet, nom: e.target.value })} /></div>
               <div><label>Inicio del proyecto</label><input type="date" value={nouveauProjet.date_debut} onChange={(e) => setNouveauProjet({ ...nouveauProjet, date_debut: e.target.value })} /></div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label>Color del proyecto</label>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {COULEURS_PROJET.map((c) => (
+                  <button key={c} type="button" onClick={() => setNouveauProjet({ ...nouveauProjet, couleur: c })}
+                    style={{ width: 26, height: 26, borderRadius: 6, background: c, cursor: 'pointer', border: nouveauProjet.couleur === c ? '3px solid #232323' : '1px solid #ccc' }} />
+                ))}
+              </div>
             </div>
             <button className="btn petit" style={{ marginTop: 12 }} onClick={creerProjet}>Crear proyecto</button>
           </div>
@@ -234,6 +247,10 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
     await supabase.from('taches').update({ numero_position: val || null }).eq('id', t.id); onChange()
   }
 
+  const changerCouleur = async (c) => {
+    await supabase.from('projets').update({ couleur: c }).eq('id', projet.id); onChange()
+  }
+
   const supprimerTache = async (t) => {
     await supabase.from('taches').delete().eq('id', t.id)
     await onChange(); onRecadrer()
@@ -357,7 +374,15 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
             {' '}({joursEntre(projet.date_debut, projet.date_fin)} días)
           </p>
         </div>
-        <button className="btn petit sec" onClick={onDelete}>Eliminar proyecto</button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+          <button className="btn petit sec" onClick={onDelete}>Eliminar proyecto</button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {COULEURS_PROJET.map((c) => (
+              <button key={c} type="button" title="Color del proyecto" onClick={() => changerCouleur(c)}
+                style={{ width: 20, height: 20, borderRadius: 5, background: c, cursor: 'pointer', border: (projet.couleur || '#c00000') === c ? '3px solid #232323' : '1px solid #ccc' }} />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Gantt */}

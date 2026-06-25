@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react'
 import { supabase, fmt } from '../lib/supabase'
 import DocumentRechnung from '../components/DocumentRechnung.jsx'
 
-const PLAN = [
+const PLAN_ACOMPTES = [
   { type: 'abschlag1', label: 'Abschlag 1', pct: 30 },
   { type: 'abschlag2', label: 'Abschlag 2', pct: 40 },
   { type: 'schluss', label: 'Schlussrechnung', pct: 30 },
 ]
+const PLAN_UNICA = [
+  { type: 'rechnung', label: 'Rechnung (factura única)', pct: 100 },
+]
+const planDe = (d) => (d.mode_facturation === 'unica' ? PLAN_UNICA : PLAN_ACOMPTES)
 
 export default function Facturas() {
   const [devis, setDevis] = useState([])
@@ -40,7 +44,7 @@ export default function Facturas() {
   }
 
   const supprimerNachtrag = async (n, d) => {
-    if (facturesDe(d.id).some((f) => f.type === 'schluss')) {
+    if (facturesDe(d.id).some((f) => f.type === 'schluss' || f.type === 'rechnung')) {
       alert('La Schlussrechnung ya está generada — no se puede modificar el importe del proyecto.'); return
     }
     if (!confirm(`¿Eliminar la modificación N${n.numero}?`)) return
@@ -51,6 +55,7 @@ export default function Facturas() {
   const montantPropose = (d, plan) => {
     const fs = facturesDe(d.id)
     const base = totalActuel(d)
+    if (plan.type === 'rechnung') return Math.round(base * 100) / 100
     if (plan.type === 'schluss') {
       const deja = fs.filter((f) => f.type !== 'schluss').reduce((s, f) => s + Number(f.montant_ht), 0)
       return Math.round((base - deja) * 100) / 100
@@ -133,7 +138,7 @@ export default function Facturas() {
         const ns = nachtraegeDe(d.id)
         const actuel = totalActuel(d)
         const fN = formNachtrag[d.id] || { description: '', montant: '' }
-        const schlussFaite = fs.some((f) => f.type === 'schluss')
+        const schlussFaite = fs.some((f) => f.type === 'schluss' || f.type === 'rechnung')
         return (
           <div className="carte" key={d.id}>
             <h2>KV {d.numero} — {d.client_civilite} {d.client_nom}</h2>
@@ -146,6 +151,12 @@ export default function Facturas() {
                 {actuel - d.total_ht >= 0 ? '+' : ''}{fmt(actuel - d.total_ht)} €</b></>}
               {' '}· <span style={{ color: 'var(--rouge)' }}>Importe actual: <b>{fmt(actuel)} € HT ({fmt(actuel * 1.19)} € TTC)</b></span>
             </p>
+
+            <div style={{ fontSize: 12.5, color: '#666', marginBottom: 14 }}>
+              Modo de facturación:{' '}
+              <b>{(d.mode_facturation || 'acomptes') === 'unica' ? 'Factura única (100%)' : '3 acontos (30 / 40 / 30 %)'}</b>
+              <span style={{ color: '#999' }}> — definido en el presupuesto</span>
+            </div>
 
             <div style={{ background: '#faf8f5', border: '1px solid #e8e4de', borderRadius: 9, padding: '12px 14px', marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#6d6d6d', marginBottom: 8 }}>
@@ -182,7 +193,7 @@ export default function Facturas() {
                 <tr><th>Factura</th><th>Importe HT €</th><th>TTC €</th><th>Nº</th><th>Estado</th><th></th></tr>
               </thead>
               <tbody>
-                {PLAN.map((p) => {
+                {planDe(d).map((p) => {
                   const f = fs.find((x) => x.type === p.type)
                   const cle = `${d.id}:${p.type}`
                   const propose = montantPropose(d, p)

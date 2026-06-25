@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseDate, toISO, fmtDate, joursEntre, MOIS, JOURS_SEM, jour } from '../lib/dates'
+import { parseDate, toISO, fmtDate, joursEntre, chevauche, MOIS, JOURS_SEM, jour } from '../lib/dates'
 import { calculerFin, prochainOuvre, ouvreLePlusProche, dureeOuvree } from '../lib/feries'
 
 // Palette de couleurs distinctes par projet
@@ -139,7 +139,7 @@ export default function Proyectos() {
 
       {projetSel && (
         <DetailProjet key={projetSel.id} projet={projetSel} taches={tachesDe(projetSel.id)}
-          personnel={personnel} allocations={allocations} onChange={charger} onRecadrer={() => recadrer(projetSel.id)} onDelete={() => supprimerProjet(projetSel)} />
+          personnel={personnel} allocations={allocations} toutesTaches={taches} projets={projets} onChange={charger} onRecadrer={() => recadrer(projetSel.id)} onDelete={() => supprimerProjet(projetSel)} />
       )}
     </div>
   )
@@ -187,7 +187,7 @@ function CalendrierMois({ projets, moisRef, setMoisRef, onSelect, selection }) {
   )
 }
 
-function DetailProjet({ projet, taches, personnel, allocations, onChange, onRecadrer, onDelete }) {
+function DetailProjet({ projet, taches, personnel, allocations, toutesTaches, projets, onChange, onRecadrer, onDelete }) {
   const [nouvelleTache, setNouvelleTache] = useState(false)
   const [formTache, setFormTache] = useState({ titre: '', date_debut: projet.date_debut, duree: 2, samedi: false })
   const [creationPers, setCreationPers] = useState(null)
@@ -262,8 +262,30 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
 
   const toggleAllocation = async (t, persId) => {
     const existe = allocsDe(t.id).find((a) => a.personnel_id === persId)
-    if (existe) await supabase.from('allocations').delete().eq('id', existe.id)
-    else await supabase.from('allocations').insert({ tache_id: t.id, personnel_id: persId })
+    if (existe) {
+      await supabase.from('allocations').delete().eq('id', existe.id)
+      onChange(); return
+    }
+    // Détection de conflit : la personne est-elle déjà occupée sur une tâche qui chevauche celle-ci ?
+    if (t.date_debut && t.date_fin) {
+      const sesTaches = allocations
+        .filter((a) => a.personnel_id === persId)
+        .map((a) => toutesTaches.find((x) => x.id === a.tache_id))
+        .filter((x) => x && x.id !== t.id && x.date_debut && x.date_fin)
+      const conflit = sesTaches.find((x) => chevauche(t.date_debut, t.date_fin, x.date_debut, x.date_fin))
+      if (conflit) {
+        const proj = projets.find((p) => p.id === conflit.projet_id)
+        const pers = personnel.find((p) => p.id === persId)
+        const ok = confirm(
+          `${pers?.nom} ya está asignado/a a "${conflit.titre}"` +
+          (proj ? ` (proyecto ${proj.nom})` : '') +
+          ` del ${fmtDate(conflit.date_debut)} al ${fmtDate(conflit.date_fin)}, que se solapa con esta tarea.\n\n` +
+          `¿Asignar de todos modos? (p. ej. mañana en un proyecto y tarde en otro)`
+        )
+        if (!ok) return
+      }
+    }
+    await supabase.from('allocations').insert({ tache_id: t.id, personnel_id: persId })
     onChange()
   }
 

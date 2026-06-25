@@ -12,11 +12,13 @@ const LIBELLES = {
   abschlag2: 'Abschlagszahlung 2 (40 % der Auftragssumme) — nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten',
   schluss: 'Schlusszahlung (30 % der Auftragssumme) — nach gemeinsamer Abnahme und Mängelbeseitigung',
 }
+const TITRES_R = { rechnung: 'RECHNUNG' }
 
 export default function DocumentRechnung({ facture, devis, facturesPrecedentes = [], nachtraege = [] }) {
   const date = new Date(facture.date_facture || Date.now()).toLocaleDateString('de-DE')
   const echeance = new Date(new Date(facture.date_facture || Date.now()).getTime() + 14 * 864e5).toLocaleDateString('de-DE')
   const estSchluss = facture.type === 'schluss'
+  const estRechnung = facture.type === 'rechnung'
 
   return (
     <div className="doc">
@@ -70,7 +72,7 @@ export default function DocumentRechnung({ facture, devis, facturesPrecedentes =
             <p className="doc-intro">
               Sehr geehrte{devis.client_civilite === 'Herr' ? 'r Herr' : devis.client_civilite === 'Frau' ? ' Frau' : ''} {devis.client_nom},<br />
               gemäß Kostenvoranschlag Nr. {devis.numero} vom Bauvorhaben <b>{devis.titre || '—'}</b> berechne
-              ich Ihnen {estSchluss ? 'die Schlusszahlung wie folgt' : 'folgende Abschlagszahlung'}:
+              ich Ihnen {estSchluss ? 'die Schlusszahlung wie folgt' : estRechnung ? 'folgende Rechnung' : 'folgende Abschlagszahlung'}:
             </p>
 
             <table className="doc-table">
@@ -82,7 +84,21 @@ export default function DocumentRechnung({ facture, devis, facturesPrecedentes =
                 </tr>
               </thead>
               <tbody>
-                {!estSchluss && (
+                {estRechnung && (
+                  <tr>
+                    <td>1</td>
+                    <td>
+                      <b>Erbrachte Leistungen gemäß Kostenvoranschlag Nr. {devis.numero}</b>
+                      <div className="desc-detail">
+                        {nachtraege.length > 0
+                          ? <>Gesamte Bauleistung inkl. Nachträge N1–N{nachtraege.length} gemäß Auftrag.</>
+                          : <>Gesamte Bauleistung gemäß Auftrag.</>}
+                      </div>
+                    </td>
+                    <td className="num"><b>{fmt(facture.montant_ht)} €</b></td>
+                  </tr>
+                )}
+                {!estSchluss && !estRechnung && (
                   <tr>
                     <td>1</td>
                     <td>

@@ -12,6 +12,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
   const [niveau, setNiveau] = useState('median')
   const [vueCatalogue, setVueCatalogue] = useState('categorie') // 'categorie' | 'din276'
   const [modeDin, setModeDin] = useState(false) // structure DIN du PDF
+  const [modeFacturation, setModeFacturation] = useState('acomptes') // 'acomptes' (30/40/30) | 'unica' (1 facture)
   const [lignes, setLignes] = useState([])
   const [apercu, setApercu] = useState(false)
   const [numero, setNumero] = useState(null)
@@ -35,6 +36,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
       setArchitecte(devisExistant.architecte || '')
       setNiveau(devisExistant.niveau_prix || 'median')
       setModeDin(!!devisExistant.mode_din)
+      setModeFacturation(devisExistant.mode_facturation || 'acomptes')
       setLignes(devisExistant.lignes || [])
       setNumero(devisExistant.numero)
       setNumeroClient(devisExistant.numero_client || null)
@@ -155,7 +157,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
       numero: num,
       client_civilite: client.civilite, client_prenom: client.prenom, client_nom: client.nom,
       client_adresse: client.adresse, client_ville: client.ville,
-      titre: projet, architecte, mode_din: modeDin, niveau_prix: niveau, numero_client: numClient,
+      titre: projet, architecte, mode_din: modeDin, mode_facturation: modeFacturation, niveau_prix: niveau, numero_client: numClient,
       total_ht: totalHT, tva, total_ttc: ttc, lignes, statut: 'borrador',
     }
     if (devisExistant?.id) await supabase.from('devis').update(payload).eq('id', devisExistant.id)
@@ -181,7 +183,7 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
           <button className="btn" onClick={() => window.print()}>Imprimir / Guardar PDF</button>
         </div>
         <DocumentAngebot numero={numero} numeroClient={numeroClient} client={client} architecte={architecte} projet={projet}
-          lignes={lignes} totalHT={totalHT} tva={tva} ttc={ttc} modeDin={modeDin} />
+          lignes={lignes} totalHT={totalHT} tva={tva} ttc={ttc} modeDin={modeDin} modeFacturation={modeFacturation} />
       </>
     )
   }
@@ -213,6 +215,24 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
           <label htmlFor="modedin" style={{ margin: 0, fontSize: 13, color: '#333' }}>
             Estructurar el PDF según <b>DIN 276 Kostengruppen</b> (como CASA Zellner)
           </label>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label style={{ fontSize: 13, color: '#333', fontWeight: 600 }}>Condiciones de pago / Facturación</label>
+          <div style={{ display: 'inline-flex', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', marginTop: 4 }}>
+            {[['acomptes', '3 acontos (30 / 40 / 30 %)'], ['unica', 'Factura única al final']].map(([val, lab]) => {
+              const actif = modeFacturation === val
+              return (
+                <button key={val} type="button" onClick={() => setModeFacturation(val)}
+                  style={{ fontSize: 13, padding: '6px 14px', border: 'none', cursor: 'pointer',
+                    background: actif ? 'var(--rouge)' : '#fff', color: actif ? '#fff' : '#666' }}>
+                  {lab}
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize: 11.5, color: '#999', margin: '6px 0 0' }}>
+            Define el bloque de condiciones de pago en el presupuesto y el modo de facturación. Las facturas heredarán esta elección.
+          </p>
         </div>
       </div>
 

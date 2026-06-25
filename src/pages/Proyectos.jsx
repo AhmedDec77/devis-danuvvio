@@ -32,7 +32,23 @@ export default function Proyectos() {
       supabase.from('allocations').select('*'),
       supabase.from('devis').select('id, numero, titre, client_civilite, client_nom, client_adresse, client_ville, lignes').eq('statut', 'aceptado'),
     ])
-    setProjets(pr.data || []); setTaches(t.data || []); setPersonnel(pe.data || [])
+    const liste = pr.data || []
+    // Attribue une couleur distincte aux projets qui partagent la même couleur (ex. anciens projets tous rouges)
+    const vus = {}
+    let modif = false
+    for (let i = 0; i < liste.length; i++) {
+      const c = liste[i].couleur
+      if (!c || vus[c] !== undefined) {
+        const nouvelle = COULEURS_PROJET[i % COULEURS_PROJET.length]
+        if (liste[i].couleur !== nouvelle) {
+          liste[i].couleur = nouvelle
+          await supabase.from('projets').update({ couleur: nouvelle }).eq('id', liste[i].id)
+          modif = true
+        }
+      }
+      vus[liste[i].couleur] = i
+    }
+    setProjets(liste); setTaches(t.data || []); setPersonnel(pe.data || [])
     setAllocations(a.data || []); setDevisAcceptes(d.data || [])
   }
   useEffect(() => { charger() }, [])
@@ -44,7 +60,7 @@ export default function Proyectos() {
     if (!n?.nom?.trim() && !n?.devis_id) return
     const devis = devisAcceptes.find((d) => d.id === n.devis_id)
     const debut = n.date_debut || toISO(prochainOuvre(new Date()))
-    const couleur = n.couleur || COULEURS_PROJET[projets.length % COULEURS_PROJET.length]
+    const couleur = COULEURS_PROJET[projets.length % COULEURS_PROJET.length]
     const { data: proj } = await supabase.from('projets').insert({
       nom: n.nom?.trim() || devis?.titre || `KV ${devis?.numero}`,
       devis_id: n.devis_id || null,
@@ -93,7 +109,7 @@ export default function Proyectos() {
       <div className="carte">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ margin: 0 }}>Calendario de proyectos</h2>
-          <button className="btn petit" onClick={() => setNouveauProjet(nouveauProjet ? null : { nom: '', devis_id: '', date_debut: '', couleur: COULEURS_PROJET[projets.length % COULEURS_PROJET.length] })}>
+          <button className="btn petit" onClick={() => setNouveauProjet(nouveauProjet ? null : { nom: '', devis_id: '', date_debut: '' })}>
             {nouveauProjet ? '✕ Cancelar' : '+ Nuevo proyecto'}
           </button>
         </div>
@@ -113,15 +129,6 @@ export default function Proyectos() {
               <div><label>Nombre {nouveauProjet.devis_id ? '(opcional)' : '*'}</label>
                 <input value={nouveauProjet.nom} onChange={(e) => setNouveauProjet({ ...nouveauProjet, nom: e.target.value })} /></div>
               <div><label>Inicio del proyecto</label><input type="date" value={nouveauProjet.date_debut} onChange={(e) => setNouveauProjet({ ...nouveauProjet, date_debut: e.target.value })} /></div>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <label>Color del proyecto</label>
-              <div style={{ display: 'flex', gap: 5 }}>
-                {COULEURS_PROJET.map((c) => (
-                  <button key={c} type="button" onClick={() => setNouveauProjet({ ...nouveauProjet, couleur: c })}
-                    style={{ width: 26, height: 26, borderRadius: 6, background: c, cursor: 'pointer', border: nouveauProjet.couleur === c ? '3px solid #232323' : '1px solid #ccc' }} />
-                ))}
-              </div>
             </div>
             <button className="btn petit" style={{ marginTop: 12 }} onClick={creerProjet}>Crear proyecto</button>
           </div>
@@ -247,9 +254,6 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
     await supabase.from('taches').update({ numero_position: val || null }).eq('id', t.id); onChange()
   }
 
-  const changerCouleur = async (c) => {
-    await supabase.from('projets').update({ couleur: c }).eq('id', projet.id); onChange()
-  }
 
   const supprimerTache = async (t) => {
     await supabase.from('taches').delete().eq('id', t.id)
@@ -374,15 +378,7 @@ function DetailProjet({ projet, taches, personnel, allocations, onChange, onReca
             {' '}({joursEntre(projet.date_debut, projet.date_fin)} días)
           </p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-          <button className="btn petit sec" onClick={onDelete}>Eliminar proyecto</button>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {COULEURS_PROJET.map((c) => (
-              <button key={c} type="button" title="Color del proyecto" onClick={() => changerCouleur(c)}
-                style={{ width: 20, height: 20, borderRadius: 5, background: c, cursor: 'pointer', border: (projet.couleur || '#c00000') === c ? '3px solid #232323' : '1px solid #ccc' }} />
-            ))}
-          </div>
-        </div>
+        <button className="btn petit sec" onClick={onDelete}>Eliminar proyecto</button>
       </div>
 
       {/* Gantt */}

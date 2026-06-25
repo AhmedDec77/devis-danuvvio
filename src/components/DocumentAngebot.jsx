@@ -6,7 +6,7 @@ import { SOCIETE } from '../lib/societe.js'
 const PAGE_MM = 297            // hauteur A4
 const PX_PAR_MM = 96 / 25.4    // conversion px ↔ mm à 96 dpi
 
-export default function DocumentAngebot({ numero, numeroClient, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, validiteMois = 2 }) {
+export default function DocumentAngebot({ numero, numeroClient, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, modeFacturation = 'acomptes', validiteMois = 2 }) {
   const ref = useRef(null)
   const [pages, setPages] = useState(1)
 
@@ -148,12 +148,23 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
 
             <div className="doc-section-titre">Zahlungsbedingungen</div>
             <div className="doc-legal">
-              Die Zahlung erfolgt nach Baufortschritt in drei Raten:<br />
-              • Abschlagszahlung 1 (30 %) bei Auftragserteilung und Arbeitsbeginn<br />
-              • Abschlagszahlung 2 (40 %) nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten<br />
-              • Schlusszahlung (30 %) nach gemeinsamer Abnahme und Mängelbeseitigung<br /><br />
-              Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
-              Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
+              {modeFacturation === 'unica' ? (
+                <>
+                  Die Zahlung der gesamten Auftragssumme erfolgt nach vollständiger Fertigstellung
+                  und gemeinsamer Abnahme der Arbeiten, gegen Schlussrechnung.<br /><br />
+                  Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
+                  Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
+                </>
+              ) : (
+                <>
+                  Die Zahlung erfolgt nach Baufortschritt in drei Raten:<br />
+                  • Abschlagszahlung 1 (30 %) bei Auftragserteilung und Arbeitsbeginn<br />
+                  • Abschlagszahlung 2 (40 %) nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten<br />
+                  • Schlusszahlung (30 %) nach gemeinsamer Abnahme und Mängelbeseitigung<br /><br />
+                  Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
+                  Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
+                </>
+              )}
             </div>
 
             <div className="doc-section-titre">Hinweise</div>

@@ -271,12 +271,23 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
       {lignes.length > 0 && (
         <div className="carte">
           <h2>4 · Posiciones del presupuesto</h2>
-          {lignes.map((l, i) => (
+          <p style={{ fontSize: 12, color: '#999', margin: '-8px 0 14px' }}>
+            El "Precio unitario" es exclusivamente la <b>mano de obra</b>. Los materiales se añaden aparte,
+            con su propio precio, y se suman al total de la posición.
+          </p>
+          {lignes.map((l, i) => {
+            const manoObra = Number(l.quantite || 0) * Number(l.prix_unitaire || 0)
+            const materiales = l.materiaux || []
+            const totalMateriales = materiales.reduce((s, m) => s + Number(m.prix || 0), 0)
+            return (
             <div key={i} style={{ borderBottom: '2px solid #eee', padding: '12px 0' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
                 <input value={l.numero_position || ''} placeholder="Nº pos. (auto)" title="Número de posición — déjalo vacío para automático, o escribe el tuyo (ej. 300.18a)"
                   onChange={(e) => maj(i, 'numero_position', e.target.value)} style={{ width: 110, fontSize: 12 }} />
                 <span style={{ fontSize: 11, color: '#999', paddingTop: 8 }}>déjalo vacío = automático</span>
+              </div>
+              <div className="ligne-entetes">
+                <span>Descripción</span><span>Cantidad</span><span>Unidad</span><span>Precio unit. (mano de obra)</span><span>Total</span><span></span>
               </div>
               <div className="ligne" style={{ borderBottom: 'none' }}>
                 <textarea value={l.description} placeholder="Descripción en alemán (1ª línea = título en negrita)" onChange={(e) => maj(i, 'description', e.target.value)} />
@@ -289,7 +300,12 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
                 <span className="total">{fmt(totalLigne(l))} €</span>
                 <button className="suppr" onClick={() => setLignes(lignes.filter((_, j) => j !== i))}>✕</button>
               </div>
-              {(l.materiaux || []).map((m, j) => (
+              {materiales.length > 0 && (
+                <div className="materiales-entetes">
+                  <span>Material</span><span>Referencia</span><span>Precio</span><span></span>
+                </div>
+              )}
+              {materiales.map((m, j) => (
                 <div key={j} style={{ display: 'grid', gridTemplateColumns: '1fr 200px 110px 34px', gap: 8, marginLeft: 24, marginTop: 6 }}>
                   <input value={m.designation} placeholder="Material (ej: Wakol Parkettkleber, 6 Eimer)" onChange={(e) => majMateriel(i, j, 'designation', e.target.value)} />
                   <input value={m.reference} placeholder="Referencia (ej: Art.-Nr. FW00065)" onChange={(e) => majMateriel(i, j, 'reference', e.target.value)} />
@@ -300,9 +316,17 @@ export default function NouveauDevis({ devisExistant, clientPrecharge }) {
               <button className="btn sec petit" style={{ marginLeft: 24, marginTop: 8 }} onClick={() => ajouterMateriel(i)}>
                 + Materialien und Lieferung
               </button>
+              {materiales.length > 0 && (
+                <div className="ligne-desglose">
+                  Mano de obra: <b>{fmt(manoObra)} €</b> · Material: <b>{fmt(totalMateriales)} €</b> · Total posición: <b>{fmt(manoObra + totalMateriales)} €</b>
+                </div>
+              )}
             </div>
-          ))}
+            )
+          })}
           <div className="totaux">
+            Mano de obra: <b>{fmt(lignes.reduce((s, l) => s + Number(l.quantite || 0) * Number(l.prix_unitaire || 0), 0))} €</b><br />
+            Material: <b>{fmt(lignes.reduce((s, l) => s + (l.materiaux || []).reduce((sm, m) => sm + Number(m.prix || 0), 0), 0))} €</b><br />
             Zwischensumme: <b>{fmt(totalHT)} €</b><br />
             MwSt. 19%: <b>{fmt(tva)} €</b><br />
             <span className="ttc">Gesamt: {fmt(ttc)} €</span>

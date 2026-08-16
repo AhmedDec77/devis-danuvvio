@@ -37,6 +37,9 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
     return () => { clearTimeout(t); window.removeEventListener('beforeprint', mesurer) }
   }, [lignes, modeDin, architecte, projet])
 
+  const arbeitGesamt = lignes.reduce((s, l) => s + Number(l.quantite || 0) * Number(l.prix_unitaire || 0), 0)
+  const materialGesamt = lignes.reduce((s, l) => s + (l.materiaux || []).reduce((sm, m) => sm + Number(m.prix || 0), 0), 0)
+
   const today = new Date()
   const date = today.toLocaleDateString('de-DE')
   const validite = new Date(today.getFullYear(), today.getMonth() + validiteMois, today.getDate()).toLocaleDateString('de-DE')
@@ -118,6 +121,11 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
               nach den anerkannten Regeln der Technik ausgeführt.
             </p>
 
+            <p className="doc-preishinweis">
+              Preisaufbau: Jede Position zeigt zuerst die Gesamtsumme. Darunter wird aufgeschlüsselt,
+              welcher Anteil auf die Arbeitsleistung entfällt und welcher auf Material.
+            </p>
+
             <table className="doc-table">
               <thead>
                 <tr>
@@ -125,7 +133,6 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
                   <th>Bezeichnung</th>
                   <th style={{ width: 52 }}>Menge</th>
                   <th style={{ width: 58 }}>Einheit</th>
-                  <th style={{ width: 68 }}>E-Preis</th>
                   <th style={{ width: 80 }}>Gesamt €</th>
                 </tr>
               </thead>
@@ -139,7 +146,9 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
             <div className="doc-totaux">
               <table>
                 <tbody>
-                  <tr><td>Zwischensumme</td><td className="num">{fmt(totalHT)} €</td></tr>
+                  <tr className="doc-totaux-detail"><td>Arbeitsleistung gesamt</td><td className="num">{fmt(arbeitGesamt)} €</td></tr>
+                  <tr className="doc-totaux-detail"><td>Materialkosten gesamt</td><td className="num">{fmt(materialGesamt)} €</td></tr>
+                  <tr><td>Zwischensumme (netto)</td><td className="num">{fmt(totalHT)} €</td></tr>
                   <tr><td>MwSt. 19 %</td><td className="num">{fmt(tva)} €</td></tr>
                   <tr className="final"><td>Gesamt</td><td className="num">{fmt(ttc)} €</td></tr>
                 </tbody>
@@ -218,7 +227,7 @@ function Groupe({ g, startPos }) {
       {g.code && (
         <tr className="doc-groupe">
           <td>{g.code !== '000' ? g.code : ''}</td>
-          <td colSpan="5" style={{ textAlign: 'right', fontWeight: 'bold' }}>{g.lib}</td>
+          <td colSpan="4" style={{ textAlign: 'right', fontWeight: 'bold' }}>{g.lib}</td>
         </tr>
       )}
       {g.lignes.map((l, i) => {
@@ -233,6 +242,9 @@ function Groupe({ g, startPos }) {
 
 function Ligne({ l, numPos }) {
   const [titre, ...reste] = String(l.description || '').split('\n')
+  const prixArbeit = Number(l.quantite || 0) * Number(l.prix_unitaire || 0)
+  const materiaux = l.materiaux || []
+  const prixMaterial = materiaux.reduce((s, m) => s + Number(m.prix || 0), 0)
   return (
     <>
       <tr>
@@ -240,13 +252,19 @@ function Ligne({ l, numPos }) {
         <td><b>{titre}</b>{reste.length > 0 && <div className="desc-detail">{reste.join('\n')}</div>}</td>
         <td className="num">{l.unite === 'pauschal' ? '' : l.quantite}</td>
         <td>{uniteLabel(l.unite)}</td>
-        <td className="num">{l.unite === 'pauschal' ? '' : fmt(l.prix_unitaire) + ' €'}</td>
-        <td className="num"><b>{fmt(l.quantite * l.prix_unitaire)} €</b></td>
+        <td className="num"><b>{fmt(prixArbeit + prixMaterial)} €</b></td>
       </tr>
-      {(l.materiaux || []).map((m, j) => (
+      <tr className="doc-arbeit">
+        <td></td>
+        <td colSpan="3">
+          Arbeitsleistung{l.unite !== 'pauschal' ? ` (${l.quantite} ${uniteLabel(l.unite)} × ${fmt(l.prix_unitaire)} €)` : ''}
+        </td>
+        <td className="num">{fmt(prixArbeit)} €</td>
+      </tr>
+      {materiaux.map((m, j) => (
         <tr key={j} className="doc-materiel">
           <td></td>
-          <td colSpan="4">
+          <td colSpan="3">
             <i>Materialien und Lieferung: {m.designation}{m.reference ? ` (${m.reference})` : ''}</i>
           </td>
           <td className="num"><i>{fmt(m.prix)} €</i></td>

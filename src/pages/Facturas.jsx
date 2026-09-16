@@ -2,15 +2,10 @@ import { useEffect, useState } from 'react'
 import { supabase, fmt } from '../lib/supabase'
 import DocumentRechnung from '../components/DocumentRechnung.jsx'
 
-const PLAN_ACOMPTES = [
-  { type: 'abschlag1', label: 'Abschlag 1', pct: 30 },
-  { type: 'abschlag2', label: 'Abschlag 2', pct: 40 },
-  { type: 'schluss', label: 'Schlussrechnung', pct: 30 },
-]
-const PLAN_UNICA = [
-  { type: 'rechnung', label: 'Rechnung (factura única)', pct: 100 },
-]
-const planDe = (d) => (d.mode_facturation === 'unica' ? PLAN_UNICA : PLAN_ACOMPTES)
+// Types "acompte" reconnus (inclut les anciens abschlag1/abschlag2 du système 30/40/30, en lecture)
+const TYPES_ACOMPTE = ['abschlag', 'abschlag1', 'abschlag2']
+// Types "facture finale" reconnus (inclut l'ancien type 'rechnung' du mode facture unique)
+const TYPES_FINALE = ['schluss', 'rechnung']
 
 export default function Facturas() {
   const [devis, setDevis] = useState([])
@@ -18,7 +13,8 @@ export default function Facturas() {
   const [nachtraege, setNachtraege] = useState([])
   const [impression, setImpression] = useState(null)
   const [formNachtrag, setFormNachtrag] = useState({})
-  const [montants, setMontants] = useState({})
+  const [formAcompte, setFormAcompte] = useState({})
+  const [montantSchluss, setMontantSchluss] = useState({})
 
   const charger = async () => {
     const { data: d } = await supabase.from('devis').select('*').eq('statut', 'aceptado').order('cree_le', { ascending: false })
@@ -29,6 +25,9 @@ export default function Facturas() {
   useEffect(() => { charger() }, [])
 
   const facturesDe = (id) => factures.filter((f) => f.devis_id === id)
+  const acomptesDe = (id) => facturesDe(id).filter((f) => TYPES_ACOMPTE.includes(f.type))
+    .sort((a, b) => (a.numero_acompte || 0) - (b.numero_acompte || 0))
+  const schlussDe = (id) => facturesDe(id).find((f) => TYPES_FINALE.includes(f.type))
   const nachtraegeDe = (id) => nachtraege.filter((n) => n.devis_id === id)
   const totalActuel = (d) => Number(d.total_ht) + nachtraegeDe(d.id).reduce((s, n) => s + Number(n.montant_ht), 0)
 
@@ -44,7 +43,7 @@ export default function Facturas() {
   }
 
   const supprimerNachtrag = async (n, d) => {
-    if (facturesDe(d.id).some((f) => f.type === 'schluss' || f.type === 'rechnung')) {
+    if (schlussDe(d.id)) {
       alert('La Schlussrechnung ya está generada — no se puede modificar el importe del proyecto.'); return
     }
     if (!confirm(`¿Eliminar la modificación N${n.numero}?`)) return
@@ -52,39 +51,54 @@ export default function Facturas() {
     charger()
   }
 
-  const montantPropose = (d, plan) => {
-    const fs = facturesDe(d.id)
-    const base = totalActuel(d)
-    if (plan.type === 'rechnung') return Math.round(base * 100) / 100
-    if (plan.type === 'schluss') {
-      const deja = fs.filter((f) => f.type !== 'schluss').reduce((s, f) => s + Number(f.montant_ht), 0)
-      return Math.round((base - deja) * 100) / 100
-    }
-    return Math.round(base * plan.pct) / 100
+  const asegurarNumeroCliente = async (d) => {
+    if (d.numero_client) return d.numero_client
+    const { data } = await supabase.rpc('obtenir_numero_client', {
+      p_civilite: d.client_civilite, p_prenom: d.client_prenom, p_nom: d.client_nom,
+      p_adresse: d.client_adresse, p_ville: d.client_ville,
+    })
+    if (data) await supabase.from('devis').update({ numero_client: data }).eq('id', d.id)
+    return data
   }
 
-  const generer = async (d, plan) => {
-    const cle = `${d.id}:${plan.type}`
-    const propose = montantPropose(d, plan)
-    const saisi = montants[cle] !== undefined && montants[cle] !== '' ? Number(montants[cle]) : propose
-    const ajuste = Math.abs(saisi - propose) > 0.01
-    const tva = Math.round(saisi * 19) / 100
+  // --- Acomptes libres : Danuvvio saisit un montant, autant de fois qu'il le souhaite ---
+  const ajouterAcompte = async (d) => {
+    const monto = Number(formAcompte[d.id])
+    if (!monto || monto <= 0) return
+    const actuel = totalActuel(d)
+    const acomptesExistants = acomptesDe(d.id)
+    const numeroAcompte = Math.max(0, ...acomptesExistants.map((f) => f.numero_acompte || 0)) + 1
+    const tva = Math.round(monto * 19) / 100
+    const pourcentage = actuel > 0 ? Math.round((monto / actuel) * 100) : 0
     const { data: numero } = await supabase.rpc('prochain_numero_facture')
-
-    let numClient = d.numero_client
-    if (!numClient) {
-      const { data } = await supabase.rpc('obtenir_numero_client', {
-        p_civilite: d.client_civilite, p_prenom: d.client_prenom, p_nom: d.client_nom,
-        p_adresse: d.client_adresse, p_ville: d.client_ville,
-      })
-      numClient = data
-      await supabase.from('devis').update({ numero_client: numClient }).eq('id', d.id)
-    }
+    const numClient = await asegurarNumeroCliente(d)
 
     const { error } = await supabase.from('factures').insert({
-      numero, devis_id: d.id, type: plan.type, pourcentage: plan.pct,
-      base_ht: totalActuel(d), montant_ht: saisi, tva, ttc: saisi + tva,
-      numero_client: numClient, ajuste_manuellement: ajuste,
+      numero, devis_id: d.id, type: 'abschlag', numero_acompte: numeroAcompte, pourcentage,
+      base_ht: actuel, montant_ht: monto, tva, ttc: monto + tva,
+      numero_client: numClient, ajuste_manuellement: false,
+    })
+    if (error) { alert('Error al crear la factura de acuenta.'); return }
+    setFormAcompte({ ...formAcompte, [d.id]: '' })
+    await charger()
+  }
+
+  // --- Facture finale : liste tous les acomptes déjà émis et calcule le solde ---
+  const generarSchluss = async (d) => {
+    const actuel = totalActuel(d)
+    const facturado = acomptesDe(d.id).reduce((s, f) => s + Number(f.montant_ht), 0)
+    const propuesto = Math.round((actuel - facturado) * 100) / 100
+    const cle = d.id
+    const saisi = montantSchluss[cle] !== undefined && montantSchluss[cle] !== '' ? Number(montantSchluss[cle]) : propuesto
+    const tva = Math.round(saisi * 19) / 100
+    const pourcentage = actuel > 0 ? Math.round((saisi / actuel) * 100) : 0
+    const { data: numero } = await supabase.rpc('prochain_numero_facture')
+    const numClient = await asegurarNumeroCliente(d)
+
+    const { error } = await supabase.from('factures').insert({
+      numero, devis_id: d.id, type: 'schluss', pourcentage,
+      base_ht: actuel, montant_ht: saisi, tva, ttc: saisi + tva,
+      numero_client: numClient, ajuste_manuellement: Math.abs(saisi - propuesto) > 0.01,
     })
     if (error) { alert('Esta factura ya existe para este presupuesto.'); return }
     await charger()
@@ -95,7 +109,7 @@ export default function Facturas() {
     charger()
   }
 
-  const supprimerFacture = async (f) => {
+  const supprimerFactura = async (f) => {
     if (!confirm(`¿Eliminar la factura ${f.numero}? (solo si no fue enviada al cliente)`)) return
     await supabase.from('factures').delete().eq('id', f.id)
     charger()
@@ -107,8 +121,9 @@ export default function Facturas() {
   }
 
   if (impression) {
-    const precedentes = impression.facture.type === 'schluss'
-      ? factures.filter((f) => f.devis_id === impression.devis.id && f.type !== 'schluss')
+    const esFinale = TYPES_FINALE.includes(impression.facture.type)
+    const precedentes = esFinale
+      ? acomptesDe(impression.devis.id)
       : []
     return (
       <>
@@ -117,7 +132,7 @@ export default function Facturas() {
           <button className="btn" onClick={() => window.print()}>Imprimir / Guardar PDF</button>
         </div>
         <DocumentRechnung facture={impression.facture} devis={impression.devis}
-          facturesPrecedentes={precedentes} nachtraege={nachtraegeDe(impression.devis.id)} />
+          acomptesPrecedentes={precedentes} nachtraege={nachtraegeDe(impression.devis.id)} />
       </>
     )
   }
@@ -134,11 +149,15 @@ export default function Facturas() {
         </div>
       )}
       {devis.map((d) => {
-        const fs = facturesDe(d.id)
+        const acomptes = acomptesDe(d.id)
+        const schluss = schlussDe(d.id)
         const ns = nachtraegeDe(d.id)
         const actuel = totalActuel(d)
         const fN = formNachtrag[d.id] || { description: '', montant: '' }
-        const schlussFaite = fs.some((f) => f.type === 'schluss' || f.type === 'rechnung')
+        const facturado = acomptes.reduce((s, f) => s + Number(f.montant_ht), 0) + (schluss ? Number(schluss.montant_ht) : 0)
+        const pendiente = actuel - facturado
+        const propuestoSchluss = Math.round((actuel - acomptes.reduce((s, f) => s + Number(f.montant_ht), 0)) * 100) / 100
+
         return (
           <div className="carte" key={d.id}>
             <h2>KV {d.numero} — {d.client_civilite} {d.client_nom}</h2>
@@ -152,12 +171,6 @@ export default function Facturas() {
               {' '}· <span style={{ color: 'var(--rouge)' }}>Importe actual: <b>{fmt(actuel)} € HT ({fmt(actuel * 1.19)} € TTC)</b></span>
             </p>
 
-            <div style={{ fontSize: 12.5, color: '#666', marginBottom: 14 }}>
-              Modo de facturación:{' '}
-              <b>{(d.mode_facturation || 'acomptes') === 'unica' ? 'Factura única (100%)' : '3 acontos (30 / 40 / 30 %)'}</b>
-              <span style={{ color: '#999' }}> — definido en el presupuesto</span>
-            </div>
-
             <div style={{ background: '#faf8f5', border: '1px solid #e8e4de', borderRadius: 9, padding: '12px 14px', marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#6d6d6d', marginBottom: 8 }}>
                 Modificaciones del proyecto (Nachträge)
@@ -169,10 +182,10 @@ export default function Facturas() {
                   <b style={{ color: Number(n.montant_ht) >= 0 ? '#1a6b1a' : '#c00000', whiteSpace: 'nowrap' }}>
                     {Number(n.montant_ht) >= 0 ? '+' : ''}{fmt(n.montant_ht)} €
                   </b>
-                  {!schlussFaite && <button className="suppr" style={{ paddingTop: 0 }} onClick={() => supprimerNachtrag(n, d)}>✕</button>}
+                  {!schluss && <button className="suppr" style={{ paddingTop: 0 }} onClick={() => supprimerNachtrag(n, d)}>✕</button>}
                 </div>
               ))}
-              {!schlussFaite ? (
+              {!schluss ? (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input style={{ flex: 1 }} placeholder="Descripción (ej: Zusätzliche Steckdosen Küche / Entfall Teppich)"
                     value={fN.description} onChange={(e) => setFormNachtrag({ ...formNachtrag, [d.id]: { ...fN, description: e.target.value } })} />
@@ -193,59 +206,78 @@ export default function Facturas() {
                 <tr><th>Factura</th><th>Importe HT €</th><th>TTC €</th><th>Nº</th><th>Estado</th><th></th></tr>
               </thead>
               <tbody>
-                {planDe(d).map((p) => {
-                  const f = fs.find((x) => x.type === p.type)
-                  const cle = `${d.id}:${p.type}`
-                  const propose = montantPropose(d, p)
-                  const bloqueSchluss = p.type === 'schluss' && fs.filter((x) => x.type !== 'schluss').length < 2
-                  return (
-                    <tr key={p.type}>
-                      <td>{p.label} <span style={{ color: '#999', fontSize: 12 }}>({p.pct} %)</span>
-                        {f?.ajuste_manuellement && <span style={{ color: '#b8860b', fontSize: 11 }}> · ajustada</span>}
-                      </td>
-                      <td>
-                        {f ? <b>{fmt(f.montant_ht)}</b> : (
-                          <input type="number" step="10" style={{ width: 110 }}
-                            placeholder={String(propose)}
-                            value={montants[cle] ?? ''}
-                            onChange={(e) => setMontants({ ...montants, [cle]: e.target.value })} />
-                        )}
-                      </td>
-                      <td>{f ? <b>{fmt(f.ttc)}</b> : fmt((montants[cle] !== undefined && montants[cle] !== '' ? Number(montants[cle]) : propose) * 1.19)}</td>
-                      <td>{f ? f.numero : '—'}</td>
-                      <td>
-                        {f ? (
-                          <select value={f.statut} onChange={(e) => changerStatut(f, e.target.value)} style={{ padding: '4px 6px', fontSize: 12 }}>
-                            <option>emitida</option><option>pagada</option>
-                          </select>
-                        ) : '—'}
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {f ? (
-                          <>
-                            <button className="btn petit sec" onClick={() => imprimer(f, d)}>Ver / Imprimir</button>{' '}
-                            {f.statut !== 'pagada' && <button className="suppr" style={{ paddingTop: 0 }} title="Eliminar" onClick={() => supprimerFacture(f)}>✕</button>}
-                          </>
-                        ) : (
-                          <button className="btn petit" disabled={bloqueSchluss}
-                            title={bloqueSchluss ? 'Genera primero los 2 Abschläge' : ''}
-                            onClick={() => generer(d, p)}>Generar</button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {acomptes.map((f) => (
+                  <tr key={f.id}>
+                    <td>Abschlag {f.numero_acompte || '—'}
+                      {f.ajuste_manuellement && <span style={{ color: '#b8860b', fontSize: 11 }}> · ajustada</span>}
+                    </td>
+                    <td><b>{fmt(f.montant_ht)}</b></td>
+                    <td><b>{fmt(f.ttc)}</b></td>
+                    <td>{f.numero}</td>
+                    <td>
+                      <select value={f.statut} onChange={(e) => changerStatut(f, e.target.value)} style={{ padding: '4px 6px', fontSize: 12 }}>
+                        <option>emitida</option><option>pagada</option>
+                      </select>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn petit sec" onClick={() => imprimer(f, d)}>Ver / Imprimir</button>{' '}
+                      {f.statut !== 'pagada' && <button className="suppr" style={{ paddingTop: 0 }} title="Eliminar" onClick={() => supprimerFactura(f)}>✕</button>}
+                    </td>
+                  </tr>
+                ))}
+                {!schluss && (
+                  <tr>
+                    <td>+ Nueva factura de acuenta</td>
+                    <td>
+                      <input type="number" step="10" style={{ width: 110 }} placeholder="€ HT"
+                        value={formAcompte[d.id] || ''} onChange={(e) => setFormAcompte({ ...formAcompte, [d.id]: e.target.value })} />
+                    </td>
+                    <td colSpan="2" style={{ color: '#999', fontSize: 12 }}>
+                      {formAcompte[d.id] ? fmt(Number(formAcompte[d.id]) * 1.19) + ' € TTC' : ''}
+                    </td>
+                    <td>
+                      <button className="btn petit" onClick={() => ajouterAcompte(d)}>Generar</button>
+                    </td>
+                  </tr>
+                )}
+                {schluss ? (
+                  <tr>
+                    <td><b>Schlussrechnung</b></td>
+                    <td><b>{fmt(schluss.montant_ht)}</b></td>
+                    <td><b>{fmt(schluss.ttc)}</b></td>
+                    <td>{schluss.numero}</td>
+                    <td>
+                      <select value={schluss.statut} onChange={(e) => changerStatut(schluss, e.target.value)} style={{ padding: '4px 6px', fontSize: 12 }}>
+                        <option>emitida</option><option>pagada</option>
+                      </select>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn petit sec" onClick={() => imprimer(schluss, d)}>Ver / Imprimir</button>{' '}
+                      {schluss.statut !== 'pagada' && <button className="suppr" style={{ paddingTop: 0 }} title="Eliminar" onClick={() => supprimerFactura(schluss)}>✕</button>}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td><b>Schlussrechnung</b> <span style={{ color: '#999', fontSize: 12 }}>(resto tras acomptes)</span></td>
+                    <td>
+                      <input type="number" step="10" style={{ width: 110 }}
+                        placeholder={String(propuestoSchluss)}
+                        value={montantSchluss[d.id] ?? ''}
+                        onChange={(e) => setMontantSchluss({ ...montantSchluss, [d.id]: e.target.value })} />
+                    </td>
+                    <td>{fmt((montantSchluss[d.id] !== undefined && montantSchluss[d.id] !== '' ? Number(montantSchluss[d.id]) : propuestoSchluss) * 1.19)}</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>
+                      <button className="btn petit" onClick={() => generarSchluss(d)}>Generar</button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-            {fs.length > 0 && (() => {
-              const facture = fs.reduce((s, f) => s + Number(f.montant_ht), 0)
-              const reste = actuel - facture
-              return (
-                <p style={{ fontSize: 13, color: '#666', marginTop: 10, textAlign: 'right' }}>
-                  Facturado: <b>{fmt(facture)} € HT</b> · Pendiente: <b style={{ color: reste > 0.01 ? 'var(--rouge)' : '#1a6b1a' }}>{fmt(reste)} € HT</b>
-                </p>
-              )
-            })()}
+            <p style={{ fontSize: 13, color: '#666', marginTop: 10, textAlign: 'right' }}>
+              Facturado: <b>{fmt(facturado)} € HT</b> · Pendiente: <b style={{ color: pendiente > 0.01 ? 'var(--rouge)' : '#1a6b1a' }}>{fmt(pendiente)} € HT</b>
+            </p>
           </div>
         )
       })}

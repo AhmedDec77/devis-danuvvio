@@ -6,7 +6,7 @@ import { SOCIETE } from '../lib/societe.js'
 const PAGE_MM = 297            // hauteur A4
 const PX_PAR_MM = 96 / 25.4    // conversion px ↔ mm à 96 dpi
 
-export default function DocumentAngebot({ numero, numeroClient, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, modeFacturation = 'acomptes', validiteMois = 2 }) {
+export default function DocumentAngebot({ numero, numeroClient, client, architecte, projet, lignes, totalHT, tva, ttc, modeDin, validiteMois = 2 }) {
   const ref = useRef(null)
   const [pages, setPages] = useState(1)
 
@@ -157,23 +157,10 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
 
             <div className="doc-section-titre">Zahlungsbedingungen</div>
             <div className="doc-legal">
-              {modeFacturation === 'unica' ? (
-                <>
-                  Die Zahlung der gesamten Auftragssumme erfolgt nach vollständiger Fertigstellung
-                  und gemeinsamer Abnahme der Arbeiten, gegen Schlussrechnung.<br /><br />
-                  Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
-                  Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
-                </>
-              ) : (
-                <>
-                  Die Zahlung erfolgt nach Baufortschritt in drei Raten:<br />
-                  • Abschlagszahlung 1 (30 %) bei Auftragserteilung und Arbeitsbeginn<br />
-                  • Abschlagszahlung 2 (40 %) nach Fertigstellung der Rohbau- und Vorbereitungsarbeiten<br />
-                  • Schlusszahlung (30 %) nach gemeinsamer Abnahme und Mängelbeseitigung<br /><br />
-                  Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
-                  Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
-                </>
-              )}
+              Die Zahlung erfolgt nach Baufortschritt in mehreren Abschlagszahlungen während der Bauausführung,
+              sowie einer Schlusszahlung nach gemeinsamer Abnahme und Mängelbeseitigung.<br /><br />
+              Skonto: Bei Zahlung innerhalb von 10 Tagen nach Rechnungsdatum gewähre ich 2 % Skonto.
+              Bei Zahlung innerhalb von 30 Tagen ohne Abzug.
             </div>
 
             <div className="doc-section-titre">Hinweise</div>
@@ -221,7 +208,7 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
   )
 }
 
-function Groupe({ g, startPos }) {
+export function Groupe({ g, startPos }) {
   return (
     <>
       {g.code && (
@@ -240,7 +227,7 @@ function Groupe({ g, startPos }) {
   )
 }
 
-function Ligne({ l, numPos }) {
+export function Ligne({ l, numPos }) {
   const [titre, ...reste] = String(l.description || '').split('\n')
   const prixArbeit = Number(l.quantite || 0) * Number(l.prix_unitaire || 0)
   const materiaux = l.materiaux || []
@@ -274,6 +261,6 @@ function Ligne({ l, numPos }) {
   )
 }
 
-function uniteLabel(u) {
+export function uniteLabel(u) {
   return { pauschal: 'Pauschal', m2: 'Qm', stunde: 'Std.', stk: 'Stk.', lfm: 'lfm' }[u] || u
 }

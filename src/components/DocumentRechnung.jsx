@@ -171,14 +171,14 @@ export default function DocumentRechnung({ facture, devis, acomptesPrecedentes =
                 {acomptesPrecedentes.length > 0 && (
                   <>
                     <div className="doc-section-titre">Rechnungsaufstellung — Abschlagszahlungen</div>
-                    <table className="doc-table">
+                    <table className="doc-table" style={{ tableLayout: 'fixed' }}>
                       <thead>
                         <tr>
-                          <th>Datum</th>
-                          <th>Nettobetrag €</th>
-                          <th>MwSt. 19 % €</th>
-                          <th>Re.-Nummer</th>
-                          <th style={{ width: 90 }}>Endbetrag €</th>
+                          <th style={{ width: 78 }}>Datum</th>
+                          <th className="num" style={{ width: 90 }}>Nettobetrag €</th>
+                          <th className="num" style={{ width: 90 }}>MwSt. 19 % €</th>
+                          <th style={{ width: 90 }}>Re.-Nummer</th>
+                          <th className="num" style={{ width: 90 }}>Endbetrag €</th>
                         </tr>
                       </thead>
                       <tbody>

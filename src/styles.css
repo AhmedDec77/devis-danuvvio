@@ -110,7 +110,7 @@ table.doc-cadre > tbody > tr > td { padding: 0 14mm; }
 
 table.doc-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
 table.doc-table th { background: #6d6d6d; color: #fff; padding: 6px 7px; text-align: left; font-size: 10px; }
-table.doc-table th:last-child, table.doc-table td.num { text-align: right; }
+table.doc-table th:last-child, table.doc-table th.num, table.doc-table td.num { text-align: right; }
 table.doc-table td { border-bottom: 1px solid #e2e2e2; padding: 6px 7px; vertical-align: top; }
 table.doc-table .pos { width: 44px; }
 table.doc-table .desc-detail { font-weight: normal; color: #333; white-space: pre-wrap; margin-top: 3px; font-size: 10px; }

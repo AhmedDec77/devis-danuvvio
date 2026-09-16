@@ -61,21 +61,22 @@ export default function Facturas() {
     return data
   }
 
-  // --- Acomptes libres : Danuvvio saisit un montant, autant de fois qu'il le souhaite ---
+  // --- Acomptes libres : Danuvvio saisit le montant TTC réellement payé par le client ---
   const ajouterAcompte = async (d) => {
-    const monto = Number(formAcompte[d.id])
-    if (!monto || monto <= 0) return
+    const montoTTC = Number(formAcompte[d.id])
+    if (!montoTTC || montoTTC <= 0) return
     const actuel = totalActuel(d)
     const acomptesExistants = acomptesDe(d.id)
     const numeroAcompte = Math.max(0, ...acomptesExistants.map((f) => f.numero_acompte || 0)) + 1
-    const tva = Math.round(monto * 19) / 100
-    const pourcentage = actuel > 0 ? Math.round((monto / actuel) * 100) : 0
+    const montoHT = Math.round((montoTTC / 1.19) * 100) / 100
+    const tva = Math.round((montoTTC - montoHT) * 100) / 100
+    const pourcentage = actuel > 0 ? Math.round((montoHT / actuel) * 100) : 0
     const { data: numero } = await supabase.rpc('prochain_numero_facture')
     const numClient = await asegurarNumeroCliente(d)
 
     const { error } = await supabase.from('factures').insert({
       numero, devis_id: d.id, type: 'abschlag', numero_acompte: numeroAcompte, pourcentage,
-      base_ht: actuel, montant_ht: monto, tva, ttc: monto + tva,
+      base_ht: actuel, montant_ht: montoHT, tva, ttc: montoTTC,
       numero_client: numClient, ajuste_manuellement: false,
     })
     if (error) { alert('Error al crear la factura de acuenta.'); return }
@@ -83,26 +84,29 @@ export default function Facturas() {
     await charger()
   }
 
-  // --- Facture finale : liste tous les acomptes déjà émis et calcule le solde ---
+  // --- Facture finale : liste tous les acomptes déjà émis et calcule le solde (saisie en TTC) ---
   const generarSchluss = async (d) => {
     const actuel = totalActuel(d)
-    const facturado = acomptesDe(d.id).reduce((s, f) => s + Number(f.montant_ht), 0)
-    const propuesto = Math.round((actuel - facturado) * 100) / 100
+    const facturadoHT = acomptesDe(d.id).reduce((s, f) => s + Number(f.montant_ht), 0)
+    const propuestoHT = Math.round((actuel - facturadoHT) * 100) / 100
+    const propuestoTTC = Math.round(propuestoHT * 1.19 * 100) / 100
     const cle = d.id
-    const saisi = montantSchluss[cle] !== undefined && montantSchluss[cle] !== '' ? Number(montantSchluss[cle]) : propuesto
-    const tva = Math.round(saisi * 19) / 100
-    const pourcentage = actuel > 0 ? Math.round((saisi / actuel) * 100) : 0
+    const saisiTTC = montantSchluss[cle] !== undefined && montantSchluss[cle] !== '' ? Number(montantSchluss[cle]) : propuestoTTC
+    const saisiHT = Math.round((saisiTTC / 1.19) * 100) / 100
+    const tva = Math.round((saisiTTC - saisiHT) * 100) / 100
+    const pourcentage = actuel > 0 ? Math.round((saisiHT / actuel) * 100) : 0
     const { data: numero } = await supabase.rpc('prochain_numero_facture')
     const numClient = await asegurarNumeroCliente(d)
 
     const { error } = await supabase.from('factures').insert({
       numero, devis_id: d.id, type: 'schluss', pourcentage,
-      base_ht: actuel, montant_ht: saisi, tva, ttc: saisi + tva,
-      numero_client: numClient, ajuste_manuellement: Math.abs(saisi - propuesto) > 0.01,
+      base_ht: actuel, montant_ht: saisiHT, tva, ttc: saisiTTC,
+      numero_client: numClient, ajuste_manuellement: Math.abs(saisiTTC - propuestoTTC) > 0.01,
     })
     if (error) { alert('Esta factura ya existe para este presupuesto.'); return }
     await charger()
   }
+
 
   const changerStatut = async (f, statut) => {
     await supabase.from('factures').update({ statut }).eq('id', f.id)
@@ -156,7 +160,8 @@ export default function Facturas() {
         const fN = formNachtrag[d.id] || { description: '', montant: '' }
         const facturado = acomptes.reduce((s, f) => s + Number(f.montant_ht), 0) + (schluss ? Number(schluss.montant_ht) : 0)
         const pendiente = actuel - facturado
-        const propuestoSchluss = Math.round((actuel - acomptes.reduce((s, f) => s + Number(f.montant_ht), 0)) * 100) / 100
+        const propuestoSchlussHT = Math.round((actuel - acomptes.reduce((s, f) => s + Number(f.montant_ht), 0)) * 100) / 100
+        const propuestoSchlussTTC = Math.round(propuestoSchlussHT * 1.19 * 100) / 100
 
         return (
           <div className="carte" key={d.id}>
@@ -228,13 +233,14 @@ export default function Facturas() {
                 {!schluss && (
                   <tr>
                     <td>+ Nueva factura de acuenta</td>
+                    <td style={{ color: '#999', fontSize: 12 }}>
+                      {formAcompte[d.id] ? fmt(Number(formAcompte[d.id]) / 1.19) + ' € HT' : ''}
+                    </td>
                     <td>
-                      <input type="number" step="10" style={{ width: 110 }} placeholder="€ HT"
+                      <input type="number" step="10" style={{ width: 110 }} placeholder="€ TTC (pagado)"
                         value={formAcompte[d.id] || ''} onChange={(e) => setFormAcompte({ ...formAcompte, [d.id]: e.target.value })} />
                     </td>
-                    <td colSpan="2" style={{ color: '#999', fontSize: 12 }}>
-                      {formAcompte[d.id] ? fmt(Number(formAcompte[d.id]) * 1.19) + ' € TTC' : ''}
-                    </td>
+                    <td colSpan="2"></td>
                     <td>
                       <button className="btn petit" onClick={() => ajouterAcompte(d)}>Generar</button>
                     </td>
@@ -259,13 +265,15 @@ export default function Facturas() {
                 ) : (
                   <tr>
                     <td><b>Schlussrechnung</b> <span style={{ color: '#999', fontSize: 12 }}>(resto tras acomptes)</span></td>
+                    <td style={{ color: '#999', fontSize: 12 }}>
+                      {fmt((montantSchluss[d.id] !== undefined && montantSchluss[d.id] !== '' ? Number(montantSchluss[d.id]) : propuestoSchlussTTC) / 1.19)}
+                    </td>
                     <td>
                       <input type="number" step="10" style={{ width: 110 }}
-                        placeholder={String(propuestoSchluss)}
+                        placeholder={String(propuestoSchlussTTC)}
                         value={montantSchluss[d.id] ?? ''}
                         onChange={(e) => setMontantSchluss({ ...montantSchluss, [d.id]: e.target.value })} />
                     </td>
-                    <td>{fmt((montantSchluss[d.id] !== undefined && montantSchluss[d.id] !== '' ? Number(montantSchluss[d.id]) : propuestoSchluss) * 1.19)}</td>
                     <td>—</td>
                     <td>—</td>
                     <td>

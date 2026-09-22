@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fmt } from '../lib/supabase'
 import Logo from './Logo.jsx'
 import { SOCIETE } from '../lib/societe.js'
+import { ventiler, montantLeistung, montantMateriau, montantLieferung, totalLigne, estMateriauAncien, UNITES_MATERIAL } from '../lib/ventilation.js'
 
 const PAGE_MM = 297            // hauteur A4
 const PX_PAR_MM = 96 / 25.4    // conversion px ↔ mm à 96 dpi
@@ -37,8 +38,7 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
     return () => { clearTimeout(t); window.removeEventListener('beforeprint', mesurer) }
   }, [lignes, modeDin, architecte, projet])
 
-  const arbeitGesamt = lignes.reduce((s, l) => s + Number(l.quantite || 0) * Number(l.prix_unitaire || 0), 0)
-  const materialGesamt = lignes.reduce((s, l) => s + (l.materiaux || []).reduce((sm, m) => sm + Number(m.prix || 0), 0), 0)
+  const v = ventiler(lignes)
 
   const today = new Date()
   const date = today.toLocaleDateString('de-DE')
@@ -122,8 +122,8 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
             </p>
 
             <p className="doc-preishinweis">
-              Preisaufbau: Jede Position zeigt zuerst die Gesamtsumme. Darunter wird aufgeschlüsselt,
-              welcher Anteil auf die Arbeitsleistung entfällt und welcher auf Material.
+              Preisaufbau: Jede Position zeigt zuerst die Gesamtsumme. Darunter wird getrennt aufgeschlüsselt
+              nach Arbeitsleistung (Lohnkosten), Material (Menge × Einzelpreis) und Lieferung.
             </p>
 
             <table className="doc-table">
@@ -146,8 +146,9 @@ export default function DocumentAngebot({ numero, numeroClient, client, architec
             <div className="doc-totaux">
               <table>
                 <tbody>
-                  <tr className="doc-totaux-detail"><td>Arbeitsleistung gesamt</td><td className="num">{fmt(arbeitGesamt)} €</td></tr>
-                  <tr className="doc-totaux-detail"><td>Materialkosten gesamt</td><td className="num">{fmt(materialGesamt)} €</td></tr>
+                  <tr className="doc-totaux-detail"><td>Arbeitsleistung (Lohnkosten) gesamt</td><td className="num">{fmt(v.leistung)} €</td></tr>
+                  <tr className="doc-totaux-detail"><td>Materialkosten gesamt</td><td className="num">{fmt(v.material)} €</td></tr>
+                  {v.lieferung > 0 && <tr className="doc-totaux-detail"><td>Lieferkosten gesamt</td><td className="num">{fmt(v.lieferung)} €</td></tr>}
                   <tr><td>Zwischensumme (netto)</td><td className="num">{fmt(totalHT)} €</td></tr>
                   <tr><td>MwSt. 19 %</td><td className="num">{fmt(tva)} €</td></tr>
                   <tr className="final"><td>Gesamt</td><td className="num">{fmt(ttc)} €</td></tr>
@@ -229,9 +230,7 @@ export function Groupe({ g, startPos }) {
 
 export function Ligne({ l, numPos }) {
   const [titre, ...reste] = String(l.description || '').split('\n')
-  const prixArbeit = Number(l.quantite || 0) * Number(l.prix_unitaire || 0)
   const materiaux = l.materiaux || []
-  const prixMaterial = materiaux.reduce((s, m) => s + Number(m.prix || 0), 0)
   return (
     <>
       <tr>
@@ -239,28 +238,40 @@ export function Ligne({ l, numPos }) {
         <td><b>{titre}</b>{reste.length > 0 && <div className="desc-detail">{reste.join('\n')}</div>}</td>
         <td className="num">{l.unite === 'pauschal' ? '' : l.quantite}</td>
         <td>{uniteLabel(l.unite)}</td>
-        <td className="num"><b>{fmt(prixArbeit + prixMaterial)} €</b></td>
+        <td className="num"><b>{fmt(totalLigne(l))} €</b></td>
       </tr>
       <tr className="doc-arbeit">
         <td></td>
         <td colSpan="3">
           Arbeitsleistung{l.unite !== 'pauschal' ? ` (${l.quantite} ${uniteLabel(l.unite)} × ${fmt(l.prix_unitaire)} €)` : ''}
         </td>
-        <td className="num">{fmt(prixArbeit)} €</td>
+        <td className="num">{fmt(montantLeistung(l))} €</td>
       </tr>
       {materiaux.map((m, j) => (
         <tr key={j} className="doc-materiel">
           <td></td>
           <td colSpan="3">
-            <i>Materialien und Lieferung: {m.designation}{m.reference ? ` (${m.reference})` : ''}</i>
+            <i>
+              Material: {m.designation}{m.reference ? ` (${m.reference})` : ''}
+              {!estMateriauAncien(m) && ` — ${fmtMenge(m.quantite)} ${uniteLabel(m.unite)} × ${fmt(m.prix_unitaire)} €`}
+            </i>
           </td>
-          <td className="num"><i>{fmt(m.prix)} €</i></td>
+          <td className="num"><i>{fmt(montantMateriau(m))} €</i></td>
         </tr>
       ))}
+      {l.lieferung && (
+        <tr className="doc-lieferung">
+          <td></td>
+          <td colSpan="3"><i>Lieferung{l.lieferung.description && l.lieferung.description !== 'Lieferung' ? `: ${l.lieferung.description}` : ''}</i></td>
+          <td className="num"><i>{fmt(montantLieferung(l))} €</i></td>
+        </tr>
+      )}
     </>
   )
 }
 
+const fmtMenge = (q) => Number(q || 0).toLocaleString('de-DE', { maximumFractionDigits: 2 })
+
 export function uniteLabel(u) {
-  return { pauschal: 'Pauschal', m2: 'Qm', stunde: 'Std.', stk: 'Stk.', lfm: 'lfm' }[u] || u
+  return { pauschal: 'Pauschal', stunde: 'Std.', ...Object.fromEntries(UNITES_MATERIAL) }[u] || u
 }

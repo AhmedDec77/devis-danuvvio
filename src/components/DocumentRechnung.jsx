@@ -3,6 +3,7 @@ import { fmt } from '../lib/supabase'
 import { SOCIETE } from '../lib/societe.js'
 import Logo from './Logo.jsx'
 import { Groupe } from './DocumentAngebot.jsx'
+import { ventiler } from '../lib/ventilation.js'
 
 const PAGE_MM = 297
 const PX_PAR_MM = 96 / 25.4
@@ -65,8 +66,9 @@ export default function DocumentRechnung({ facture, devis, acomptesPrecedentes =
   }
   let pos = 0
 
-  // --- Mention légale "Lohnkosten" : uniquement la main d'œuvre des positions d'origine (hors Nachträge) ---
-  const arbeitNetto = (devis.lignes || []).reduce((s, l) => s + Number(l.quantite || 0) * Number(l.prix_unitaire || 0), 0)
+  // --- Mention légale "Lohnkosten" : uniquement la part Leistung des positions d'origine
+  //     (hors Material, hors Lieferung, hors Nachträge) ---
+  const arbeitNetto = ventiler(devis.lignes || []).leistung
   const arbeitBrutto = arbeitNetto * 1.19
   const arbeitMwst = arbeitBrutto - arbeitNetto
 
